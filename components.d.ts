@@ -7,6 +7,9 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    IconMdiAccount: typeof import('~icons/mdi/account')['default']
+    IconMdiHomeOutline: typeof import('~icons/mdi/home-outline')['default']
+    IMdiAccountBox: typeof import('~icons/mdi/account-box')['default']
     NutCell: typeof import('@nutui/nutui')['Cell']
     NutPopup: typeof import('@nutui/nutui')['Popup']
   }
