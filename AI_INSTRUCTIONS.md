@@ -9,7 +9,7 @@
 ## 2. 技术栈约束与规范
 在生成、修改代码时，请严格遵守以下技术栈：
 - **核心框架:** Vue 3 (强制使用 Composition API 和 `<script setup>` 语法)
-- **构建工具:** Vite
+- **构建工具:** Vite （使用pnpm进行依赖管理）
 - **UI 组件库:** NutUI 4.x (京东移动端组件库，优先使用其内置组件还原设计)
 - **CSS 方案:** Tailwind CSS (仅用于辅助 NutUI 无法覆盖的特殊布局、间距和基础排版)
 - **路由管理:** 通过Vue Router构建单页面应用
@@ -31,6 +31,7 @@ cooking-front_mobile
 │   └── vite.svg
 ├── src/                   # 核心源码目录
 │   ├── api/               # 所有与后端交互的 Axios 请求方法
+│   ├── components/        # 定义项目中用到的公共组件（如底部菜单栏）
 │   ├── assets/            # 项目静态资源 (图片、全局样式等)
 │   ├── router/            # 路由配置中心
 │   ├── views/             # 页面级视图组件
