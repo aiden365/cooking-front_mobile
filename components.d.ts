@@ -10,7 +10,17 @@ declare module 'vue' {
     IconMdiAccount: typeof import('~icons/mdi/account')['default']
     IconMdiHomeOutline: typeof import('~icons/mdi/home-outline')['default']
     IMdiAccountBox: typeof import('~icons/mdi/account-box')['default']
+    NutAvatar: typeof import('@nutui/nutui')['Avatar']
     NutCell: typeof import('@nutui/nutui')['Cell']
+    NutGrid: typeof import('@nutui/nutui')['Grid']
+    NutGridItem: typeof import('@nutui/nutui')['GridItem']
+    NutIcon: typeof import('@nutui/nutui')['Icon']
     NutPopup: typeof import('@nutui/nutui')['Popup']
+    NutSearchbar: typeof import('@nutui/nutui')['Searchbar']
+    NutTabbar: typeof import('@nutui/nutui')['Tabbar']
+    NutTabbarItem: typeof import('@nutui/nutui')['TabbarItem']
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
+    TabBar: typeof import('./src/components/TabBar.vue')['default']
   }
 }
