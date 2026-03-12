@@ -20,7 +20,7 @@ const activeTab = ref(0);
 const list = [
   { key: 'index', title: '首页', icon: { active: h(Home, { width: '20px', height: '20px' }), inactive: h(Home, { width: '20px', height: '20px' }) }, path: '/' },
   { key: 'dish', title: '菜谱', icon: { active: h(Find, { width: '20px', height: '20px' }), inactive: h(Find, { width: '20px', height: '20px' }) }, path: '/dish/list' },
-  { key: 'shares', title: '分享', icon: { active: h(Share, { width: '20px', height: '20px' }), inactive: h(Share, { width: '20px', height: '20px' }) }, path: '/shares' },
+  { key: 'shares', title: '分享', icon: { active: h(Share, { width: '20px', height: '20px' }), inactive: h(Share, { width: '20px', height: '20px' }) }, path: '/share-list' },
   { key: 'user', title: '我的', icon: { active: h(My, { width: '20px', height: '20px' }), inactive: h(My, { width: '20px', height: '20px' }) }, path: '/user/home' },
 ];
 
