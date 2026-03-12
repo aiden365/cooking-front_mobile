@@ -1,4 +1,23 @@
 * {
   padding: 0;
   margin: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  color: #111827;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f9f7f4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img {
+  max-width: 100%;
 }
