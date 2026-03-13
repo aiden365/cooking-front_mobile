@@ -13,4 +13,10 @@ export function setupUserMock() {
       favoriteCuisine: ['家常菜', '低脂餐'],
     },
   }))
+
+  Mock.mock(/\/api\/user\/label\/\d+$/, 'get', () => ({
+    code: 200,
+    message: '获取用户标签成功',
+    data: [1, 3, 7, 12],
+  }))
 }

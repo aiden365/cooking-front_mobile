@@ -2,6 +2,7 @@ import Mock from 'mockjs'
 import { setupDishMock } from './dish'
 import { setupHomeMock } from './home'
 import { setupLoginMock } from './login'
+import { setupSystemMock } from './system'
 import { setupUserMock } from './user'
 
 let isMockReady = false
@@ -17,6 +18,7 @@ export function setupMock() {
 
   setupLoginMock()
   setupUserMock()
+  setupSystemMock()
   setupDishMock()
   setupHomeMock()
 
