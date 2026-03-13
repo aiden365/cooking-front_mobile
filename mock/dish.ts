@@ -1,4 +1,5 @@
 import Mock from 'mockjs'
+import dish1 from '../src/assets/img/dish1.jpg'
 
 const dishList = [
   {
@@ -28,8 +29,7 @@ const dishDetailMap = {
   1: {
     id: 1,
     title: '红烧排骨',
-    cover:
-      'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1400&q=80',
+    cover: dish1,
     galleryCount: 5,
     browseCount: '8.2w',
     favoriteCount: '1.2w',
