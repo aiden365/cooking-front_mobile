@@ -1,9 +1,14 @@
 <template>
   <router-view />
-  <TabBar />
+  <TabBar v-if="showTabBar" />
 </template>
 
-<script setup>
-import TabBar from './components/TabBar.vue';
-</script>
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import TabBar from './components/TabBar.vue'
 
+const route = useRoute()
+
+const showTabBar = computed(() => route.name !== 'DishDetail')
+</script>
