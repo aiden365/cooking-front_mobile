@@ -168,6 +168,21 @@ function toggleLabel(labelId: number) {
   selectedLabelIds.value = [...selectedLabelIds.value, labelId]
 }
 
+function handleGeneratePlan() {
+  const selectedNames = aiLabels.value
+    .filter((label) => selectedLabelIds.value.includes(label.id))
+    .map((label) => label.name)
+
+  showAIPanel.value = false
+
+  router.push({
+    name: 'DishIndividual',
+    query: {
+      labelNames: selectedNames.join('|'),
+    },
+  })
+}
+
 onMounted(() => {
   aiButtonTop.value = clampButtonTop(window.innerHeight * 0.52)
   loadDishDetail()
@@ -343,7 +358,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
-      <button type="button" class="ai-generate-button">生成</button>
+      <button type="button" class="ai-generate-button" @click="handleGeneratePlan">生成</button>
     </section>
   </section>
 </template>
