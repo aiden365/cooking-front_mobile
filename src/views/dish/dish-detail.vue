@@ -13,7 +13,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDishDetail, type DishCommentReply, type DishDetail } from '../../api/dish'
 import { getSystemLabels, getUserLabels, type SystemLabel } from '../../api/label'
-import aiButtonImage from '../../assets/img/ai_button.png'
 
 defineOptions({
   name: 'DishDetail',
@@ -316,7 +315,11 @@ onBeforeUnmount(() => {
         @pointerdown="handlePointerDown"
         @click="handleFloatClick"
       >
-        <img :src="aiButtonImage" alt="AI个性化菜谱" />
+        <span class="ai-float-glow" />
+        <span class="ai-float-icon">
+          <icon-mdi-robot-excited-outline />
+        </span>
+        <span class="ai-float-text">AI CHEF</span>
       </button>
     </template>
 
@@ -563,19 +566,57 @@ onBeforeUnmount(() => {
 
 .ai-float-button {
   position: fixed;
-  right: 8px;
+  right: 10px;
   z-index: 34;
-  width: 72px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 66px;
+  height: 74px;
   padding: 0;
-  background: transparent;
-  border: none;
+  color: #ffffff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03)),
+    linear-gradient(160deg, #FF7E71 0%, #FF7E71 52%, #FF7E71 100%);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 22px;
+  box-shadow:
+    0 10px 30px rgba(45, 124, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
   touch-action: none;
 }
 
-.ai-float-button img {
+.ai-float-glow {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  width: 48px;
+  height: 48px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0, rgba(255, 255, 255, 0) 72%);
+  opacity: 0.9;
+}
+
+.ai-float-icon {
+  position: relative;
+  z-index: 1;
   display: block;
-  width: 100%;
-  height: auto;
+  line-height: 1;
+  font-size: 24px;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.35));
+}
+
+.ai-float-text {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  opacity: 0.96;
 }
 
 .comment-card {
