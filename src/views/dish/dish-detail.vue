@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
         <span class="ai-float-icon">
           <icon-mdi-robot-excited-outline />
         </span>
-        <span class="ai-float-text">AI ASST</span>
+        <span class="ai-float-text">AI小助手</span>
       </button>
     </template>
 
