@@ -1,69 +1,44 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { login } from '../../api/auth'
 import backgroundImage from '../../assets/img/background1.png'
 
 defineOptions({
-  name: 'Login',
+  name: 'ForgotPassword',
 })
 
 const router = useRouter()
 const username = ref('')
-const password = ref('')
 const email = ref('')
-const loading = ref(false)
+const verifyCode = ref('')
 const message = ref('')
 
-async function handleLogin() {
-  if (!username.value || !password.value || !email.value) {
-    message.value = '请完整填写用户名、密码和邮箱'
+function handleReset() {
+  if (!username.value || !email.value || !verifyCode.value) {
+    message.value = '请完整填写用户名、邮箱和验证码'
     return
   }
 
-  loading.value = true
-  message.value = ''
-
-  try {
-    const response = await login({
-      username: username.value,
-      password: password.value,
-    })
-
-    localStorage.setItem('token', response.data.token)
-    message.value = `欢迎回来，${response.data.nickname}`
-    router.push('/user/home')
-  } catch (error) {
-    message.value = error instanceof Error ? error.message : '登录失败，请稍后再试'
-  } finally {
-    loading.value = false
-  }
+  message.value = '重置申请已提交，请前往邮箱查看后续指引'
 }
 </script>
 
 <template>
-  <section class="login-page" :style="{ backgroundImage: `url(${backgroundImage})` }">
-    <div class="login-overlay" />
+  <section class="auth-page" :style="{ backgroundImage: `url(${backgroundImage})` }">
+    <div class="auth-overlay" />
 
-    <div class="login-shell">
-      <section class="login-hero">
+    <div class="auth-shell">
+      <section class="auth-hero">
         <div class="hero-icon">
-          <icon-mdi-chef-hat />
+          <icon-mdi-lock-reset />
         </div>
-        <!-- <h1>智能菜谱</h1>
-        <p>记录健康饮食，生成更懂你的每一餐</p> -->
-        <h3>智能菜谱, 更懂你的每一餐</h3>
+        <h3>找回你的账号密码</h3>
       </section>
 
-      <section class="login-panel">
+      <section class="auth-panel">
         <label class="field">
           <span class="field-icon"><icon-mdi-account-outline /></span>
           <input v-model="username" type="text" placeholder="请输入用户名" />
-        </label>
-
-        <label class="field">
-          <span class="field-icon"><icon-mdi-lock-outline /></span>
-          <input v-model="password" type="password" placeholder="请输入密码" />
         </label>
 
         <label class="field">
@@ -71,17 +46,18 @@ async function handleLogin() {
           <input v-model="email" type="email" placeholder="请输入邮箱" />
         </label>
 
-        <button class="login-button" type="button" :disabled="loading" @click="handleLogin">
-          {{ loading ? '登录中...' : '登录' }}
-        </button>
+        <label class="field">
+          <span class="field-icon"><icon-mdi-shield-key-outline /></span>
+          <input v-model="verifyCode" type="text" placeholder="请输入验证码" />
+        </label>
+
+        <button class="auth-button" type="button" @click="handleReset">找回密码</button>
 
         <p v-if="message" class="message-text">{{ message }}</p>
 
         <div class="action-row">
-          <button type="button" class="text-button" @click="router.push('/user/register')">注册</button>
-          <button type="button" class="text-button" @click="router.push('/user/forgot-password')">
-            找回密码
-          </button>
+          <button type="button" class="text-button" @click="router.push('/user/login')">返回登录</button>
+          <button type="button" class="text-button" @click="router.push('/user/register')">前往注册</button>
         </div>
       </section>
     </div>
@@ -89,7 +65,7 @@ async function handleLogin() {
 </template>
 
 <style scoped>
-.login-page {
+.auth-page {
   position: relative;
   min-height: 100vh;
   display: flex;
@@ -100,7 +76,7 @@ async function handleLogin() {
   background-size: cover;
 }
 
-.login-overlay {
+.auth-overlay {
   position: absolute;
   inset: 0;
   background:
@@ -109,7 +85,7 @@ async function handleLogin() {
   backdrop-filter: blur(3px);
 }
 
-.login-shell {
+.auth-shell {
   position: relative;
   z-index: 1;
   width: min(100%, 420px);
@@ -119,7 +95,7 @@ async function handleLogin() {
   gap: 22px;
 }
 
-.login-hero {
+.auth-hero {
   text-align: center;
 }
 
@@ -137,21 +113,14 @@ async function handleLogin() {
   box-shadow: 0 18px 36px rgba(255, 143, 132, 0.28);
 }
 
-.login-hero h1 {
+.auth-hero h3 {
   margin: 0;
-  color: #3b241f;
-  font-size: 34px;
+  color: #5c3d36;
+  font-size: 24px;
   font-weight: 800;
-  letter-spacing: 1px;
 }
 
-.login-hero p {
-  margin: 10px 0 0;
-  color: #775750;
-  font-size: 15px;
-}
-
-.login-panel {
+.auth-panel {
   width: 100%;
   padding: 24px 18px 20px;
   background: rgba(255, 255, 255, 0.8);
@@ -189,7 +158,7 @@ async function handleLogin() {
   outline: none;
 }
 
-.login-button {
+.auth-button {
   width: 100%;
   height: 52px;
   margin-top: 6px;
@@ -200,10 +169,6 @@ async function handleLogin() {
   border: none;
   border-radius: 18px;
   box-shadow: 0 16px 28px rgba(255, 143, 132, 0.24);
-}
-
-.login-button:disabled {
-  opacity: 0.72;
 }
 
 .message-text {

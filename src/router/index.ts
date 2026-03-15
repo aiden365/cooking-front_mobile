@@ -37,6 +37,16 @@ const routes = [
     component: () => import('../views/user/login.vue'),
   },
   {
+    path: '/user/register',
+    name: 'Register',
+    component: () => import('../views/user/register.vue'),
+  },
+  {
+    path: '/user/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('../views/user/forgot-password.vue'),
+  },
+  {
     path: '/user/my-collect',
     name: 'MyCollect',
     component: () => import('../views/user/my-collect.vue'),

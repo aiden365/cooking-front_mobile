@@ -8,11 +8,14 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     IconMdiAccountOutline: typeof import('~icons/mdi/account-outline')['default']
+    IconMdiAccountPlusOutline: typeof import('~icons/mdi/account-plus-outline')['default']
     IconMdiChefHat: typeof import('~icons/mdi/chef-hat')['default']
     IconMdiEmailOutline: typeof import('~icons/mdi/email-outline')['default']
     IconMdiLockOutline: typeof import('~icons/mdi/lock-outline')['default']
+    IconMdiLockReset: typeof import('~icons/mdi/lock-reset')['default']
     IconMdiNoodles: typeof import('~icons/mdi/noodles')['default']
     IconMdiRobotExcitedOutline: typeof import('~icons/mdi/robot-excited-outline')['default']
+    IconMdiShieldKeyOutline: typeof import('~icons/mdi/shield-key-outline')['default']
     NutSearchbar: typeof import('@nutui/nutui')['Searchbar']
     NutTabbar: typeof import('@nutui/nutui')['Tabbar']
     NutTabbarItem: typeof import('@nutui/nutui')['TabbarItem']
