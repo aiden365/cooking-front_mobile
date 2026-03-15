@@ -6,6 +6,13 @@ export interface DishItem {
   description: string
   calories: number
   tags: string[]
+  cover?: string
+  madeCount?: number
+  favoriteCount?: number
+  hasVideo?: boolean
+  popularity?: number
+  activity?: number
+  publishedAt?: string
 }
 
 export interface DishIngredient {
@@ -47,6 +54,14 @@ export interface DishDetail {
   commentCount: number
 }
 
+export interface DishSearchParams {
+  keyword?: string
+  sortBy?: 'comprehensive' | 'favorite' | 'activity' | 'time'
+  withVideo?: boolean
+  page?: number
+  pageSize?: number
+}
+
 export function getRecommendDishes() {
   return request<DishItem[]>({
     url: '/dishes/recommend',
@@ -58,6 +73,14 @@ export function getDishList() {
   return request<{ list: DishItem[]; total: number }>({
     url: '/dishes',
     method: 'get',
+  })
+}
+
+export function getDishSearchList(params: DishSearchParams) {
+  return request<{ list: DishItem[]; total: number; page: number; pageSize: number }>({
+    url: '/dishes/search',
+    method: 'get',
+    params,
   })
 }
 

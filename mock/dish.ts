@@ -1,5 +1,6 @@
 import Mock from 'mockjs'
-import dish1 from '../src/assets/img/dish1.jpg'
+import dish1 from '../src/assets/img/dish1.png'
+import dish2 from '../src/assets/img/dish2.png'
 
 const dishList = [
   {
@@ -8,6 +9,13 @@ const dishList = [
     description: '浓油赤酱，软烂入味，是最经典的家常硬菜之一。',
     calories: 486,
     tags: ['家常菜', '宴客菜'],
+    cover: dish1,
+    madeCount: 49,
+    favoriteCount: 10,
+    hasVideo: false,
+    popularity: 96,
+    activity: 88,
+    publishedAt: '2026-03-10 12:00:00',
   },
   {
     id: 2,
@@ -15,6 +23,13 @@ const dishList = [
     description: '口味清淡，适合全家共享。',
     calories: 318,
     tags: ['营养均衡', '汤品'],
+    cover: dish1,
+    madeCount: 65,
+    favoriteCount: 21,
+    hasVideo: true,
+    popularity: 78,
+    activity: 72,
+    publishedAt: '2026-03-08 09:20:00',
   },
   {
     id: 3,
@@ -22,6 +37,13 @@ const dishList = [
     description: '10 分钟快手菜，富含优质蛋白。',
     calories: 198,
     tags: ['快手菜', '高蛋白'],
+    cover: dish1,
+    madeCount: 32,
+    favoriteCount: 16,
+    hasVideo: true,
+    popularity: 83,
+    activity: 92,
+    publishedAt: '2026-03-12 18:30:00',
   },
 ]
 
@@ -143,6 +165,44 @@ export function setupDishMock() {
       total: dishList.length,
     },
   }))
+
+  Mock.mock(/\/api\/dishes\/search(\?.*)?$/, 'get', ({ url }) => {
+    const currentUrl = new URL(url, 'https://mock.local')
+    const keyword = currentUrl.searchParams.get('keyword')?.trim() || ''
+    const sortBy = currentUrl.searchParams.get('sortBy') || 'comprehensive'
+    const withVideo = currentUrl.searchParams.get('withVideo') === 'true'
+    const page = Number(currentUrl.searchParams.get('page') || 1)
+    const pageSize = Number(currentUrl.searchParams.get('pageSize') || 10)
+
+    let filtered = dishList.filter((item) =>
+      keyword ? item.name.includes(keyword) || item.description.includes(keyword) : true,
+    )
+
+    if (withVideo) {
+      filtered = filtered.filter((item) => item.hasVideo)
+    }
+
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === 'favorite') return b.favoriteCount - a.favoriteCount
+      if (sortBy === 'activity') return b.activity - a.activity
+      if (sortBy === 'time') return b.publishedAt.localeCompare(a.publishedAt)
+      return b.popularity - a.popularity
+    })
+
+    const start = (page - 1) * pageSize
+    const list = filtered.slice(start, start + pageSize)
+
+    return {
+      code: 200,
+      message: '获取搜索菜谱成功',
+      data: {
+        list,
+        total: filtered.length,
+        page,
+        pageSize,
+      },
+    }
+  })
 
   Mock.mock(/\/api\/dishes\/\d+$/, 'get', ({ url }) => {
     const match = url.match(/\/api\/dishes\/(\d+)$/)
