@@ -34,7 +34,12 @@ const routes = [
   {
     path: '/user/home',
     name: 'UserHome',
-    component: () => import('../views/user/home.vue'),
+    component: () => import('../views/user/my-index.vue'),
+  },
+  {
+    path: '/user/my-index',
+    name: 'MyIndex',
+    component: () => import('../views/user/my-index.vue'),
   },
   {
     path: '/user/login',
@@ -67,9 +72,24 @@ const routes = [
     component: () => import('../views/user/my-share.vue'),
   },
   {
-    path: '/user/profile',
-    name: 'Profile',
-    component: () => import('../views/user/profile.vue'),
+    path: '/user/my-profile',
+    name: 'MyProfile',
+    component: () => import('../views/user/my-profile.vue'),
+  },
+  {
+    path: '/user/my-individual-dish',
+    name: 'MyIndividualDish',
+    component: () => import('../views/user/my-individual-dish.vue'),
+  },
+  {
+    path: '/user/my-label',
+    name: 'MyLabel',
+    component: () => import('../views/user/my-label.vue'),
+  },
+  {
+    path: '/user/my-nutrition',
+    name: 'MyNutrition',
+    component: () => import('../views/user/my-nutrition.vue'),
   },
 ];
 
