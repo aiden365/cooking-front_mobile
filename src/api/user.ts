@@ -8,6 +8,19 @@ export interface UserProfileForm {
   weight: string
 }
 
+export interface UserCollectedDish {
+  id: number
+  name: string
+  img: string
+  labels: string
+  collectNum: string
+}
+
+export interface UserCollectGroup {
+  date: string
+  dishes: UserCollectedDish[]
+}
+
 export function getUserProfile() {
   return request<UserProfileForm>({
     url: '/user/profile',
@@ -20,5 +33,12 @@ export function updateUserProfile(data: UserProfileForm) {
     url: '/user/profile',
     method: 'post',
     data,
+  })
+}
+
+export function getUserCollectList() {
+  return request<UserCollectGroup[]>({
+    url: '/user/collects',
+    method: 'get',
   })
 }
