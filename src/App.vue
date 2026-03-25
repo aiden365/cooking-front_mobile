@@ -21,6 +21,7 @@ const showTabBar = computed(() =>
     'MyCollect',
     'MyShare',
     'MyLabel',
+    'MyNutrition',
   ].includes(
     String(route.name),
   ),

@@ -29,6 +29,26 @@ export interface UserShareItem {
   tags: string[]
 }
 
+export interface SystemNutritionItem {
+  id: number
+  nutritionName: string
+  defaultValue: string
+}
+
+export interface UserNutritionItem {
+  id: number
+  nutritionId: number | null
+  nutritionName: string
+  aimValue: string
+}
+
+export interface UserNutritionPayload {
+  id?: number
+  nutritionId: number
+  nutritionName: string
+  aimValue: string
+}
+
 export function getUserProfile() {
   return request<UserProfileForm>({
     url: '/user/profile',
@@ -55,5 +75,34 @@ export function getUserShareList() {
   return request<UserShareItem[]>({
     url: '/user/shares',
     method: 'get',
+  })
+}
+
+export function getSystemNutritionList() {
+  return request<SystemNutritionItem[]>({
+    url: '/system/nutrition',
+    method: 'get',
+  })
+}
+
+export function getUserNutritionList() {
+  return request<UserNutritionItem[]>({
+    url: '/user/nutrition',
+    method: 'get',
+  })
+}
+
+export function saveUserNutritionItem(data: UserNutritionPayload) {
+  return request<UserNutritionItem>({
+    url: '/user/nutrition',
+    method: 'post',
+    data,
+  })
+}
+
+export function deleteUserNutritionItem(id: number) {
+  return request<null>({
+    url: `/user/nutrition/${id}`,
+    method: 'delete',
   })
 }

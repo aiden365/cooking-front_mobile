@@ -5,6 +5,27 @@ import dish1 from '../src/assets/img/dish1.png'
 import dish2 from '../src/assets/img/dish2.png'
 
 export function setupUserMock() {
+  const userNutritionList = [
+    {
+      id: 1001,
+      nutritionId: 1001,
+      nutritionName: '蛋白质',
+      aimValue: '20g',
+    },
+    {
+      id: 1002,
+      nutritionId: 1002,
+      nutritionName: '脂肪',
+      aimValue: '20g',
+    },
+    {
+      id: 1003,
+      nutritionId: 1003,
+      nutritionName: '碳水化合物',
+      aimValue: '20g',
+    },
+  ]
+
   Mock.mock(/\/api\/user\/profile$/, 'get', () => ({
     code: 200,
     message: '获取用户信息成功',
@@ -115,4 +136,33 @@ export function setupUserMock() {
       data: payload,
     }
   })
+
+  Mock.mock(/\/api\/user\/nutrition$/, 'get', () => ({
+    code: 200,
+    message: '获取用户营养目标成功',
+    data: userNutritionList,
+  }))
+
+  Mock.mock(/\/api\/user\/nutrition$/, 'post', ({ body }) => {
+    const payload = body ? JSON.parse(body) : {}
+    const nextId = payload.id || Date.now()
+    const responseData = {
+      id: nextId,
+      nutritionId: payload.nutritionId,
+      nutritionName: payload.nutritionName,
+      aimValue: payload.aimValue,
+    }
+
+    return {
+      code: 200,
+      message: '保存营养目标成功',
+      data: responseData,
+    }
+  })
+
+  Mock.mock(/\/api\/user\/nutrition\/\d+$/, 'delete', () => ({
+    code: 200,
+    message: '删除营养目标成功',
+    data: null,
+  }))
 }
