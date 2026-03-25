@@ -30,7 +30,7 @@ async function loadSearchList() {
   errorMessage.value = ''
 
   try {
-    const response = await getDishSearchList({
+    /* const response = await getDishSearchList({
       keyword: keyword.value,
       sortBy: sortBy.value,
       withVideo: withVideo.value,
@@ -39,7 +39,7 @@ async function loadSearchList() {
     })
 
     dishes.value = response.data.list
-    total.value = response.data.total
+    total.value = response.data.total */
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '搜索失败'
   } finally {
@@ -64,12 +64,6 @@ function clearKeyword() {
 function goDetail(id?: number) {
   if (!id) return
   router.push(`/dish/detail/${id}`)
-}
-
-function goGeneratePlan() {
-  router.push({
-    name: 'DishIndividual',
-  })
 }
 
 watch([sortBy, withVideo], () => {
@@ -170,9 +164,8 @@ onMounted(() => {
         </template>
 
         <div v-else class="empty-box">
-          <icon-mdi-noodles class="empty-icon" />
-          <p>没有找到符合条件的菜谱</p>
-          <button type="button" class="generate-button" @click="goGeneratePlan">立即生成</button>
+          <icon-mdi-loading class="empty-icon empty-icon-loading" />
+          <p>正在智能生成...</p>
         </div>
       </section>
     </div>
@@ -374,16 +367,8 @@ onMounted(() => {
   color: rgb(255, 126, 113);
 }
 
-.generate-button {
-  width: 180px;
-  height: 44px;
-  margin-top: 18px;
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 700;
-  background: rgb(255, 126, 113);
-  border: none;
-  border-radius: 12px;
+.empty-icon-loading {
+  animation: spin 1s linear infinite;
 }
 
 .footer-dots {
@@ -398,5 +383,15 @@ onMounted(() => {
   height: 7px;
   background: rgb(255, 126, 113);
   border-radius: 999px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

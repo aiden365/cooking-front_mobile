@@ -11,6 +11,7 @@ declare module 'vue' {
     IconMdiAccountPlusOutline: typeof import('~icons/mdi/account-plus-outline')['default']
     IconMdiChefHat: typeof import('~icons/mdi/chef-hat')['default']
     IconMdiEmailOutline: typeof import('~icons/mdi/email-outline')['default']
+    IconMdiLoading: typeof import('~icons/mdi/loading')['default']
     IconMdiLockOutline: typeof import('~icons/mdi/lock-outline')['default']
     IconMdiLockReset: typeof import('~icons/mdi/lock-reset')['default']
     IconMdiNoodles: typeof import('~icons/mdi/noodles')['default']

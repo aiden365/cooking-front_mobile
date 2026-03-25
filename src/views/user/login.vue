@@ -52,7 +52,7 @@ async function handleLogin() {
         </div>
         <!-- <h1>智能菜谱</h1>
         <p>记录健康饮食，生成更懂你的每一餐</p> -->
-        <h3>智能菜谱, 更懂你的每一餐</h3>
+        <h3>智能菜谱更懂你的每一餐</h3>
       </section>
 
       <section class="login-panel">
@@ -66,10 +66,10 @@ async function handleLogin() {
           <input v-model="password" type="password" placeholder="请输入密码" />
         </label>
 
-        <label class="field">
+        <!-- <label class="field">
           <span class="field-icon"><icon-mdi-email-outline /></span>
           <input v-model="email" type="email" placeholder="请输入邮箱" />
-        </label>
+        </label> -->
 
         <button class="login-button" type="button" :disabled="loading" @click="handleLogin">
           {{ loading ? '登录中...' : '登录' }}
@@ -80,7 +80,7 @@ async function handleLogin() {
         <div class="action-row">
           <button type="button" class="text-button" @click="router.push('/user/register')">注册</button>
           <button type="button" class="text-button" @click="router.push('/user/forgot-password')">
-            找回密码
+            修改密码
           </button>
         </div>
       </section>

@@ -12,12 +12,13 @@ const router = useRouter()
 const username = ref('')
 const password = ref('')
 const email = ref('')
+const emailCode = ref('')
 const loading = ref(false)
 const message = ref('')
 
 async function handleRegister() {
-  if (!username.value || !password.value || !email.value) {
-    message.value = '请完整填写用户名、密码和邮箱'
+  if (!username.value || !password.value || !email.value || !emailCode.value) {
+    message.value = '请完整填写用户名、密码、邮箱和邮箱验证码'
     return
   }
 
@@ -44,10 +45,19 @@ async function handleRegister() {
     <div class="auth-overlay" />
 
     <div class="auth-shell">
-      <section class="auth-hero">
+      <!-- <section class="auth-hero">
         <div class="hero-icon">
           <icon-mdi-account-plus-outline />
         </div>
+        <h3>创建你的智能菜谱账号</h3>
+      </section> -->
+
+      <section class="login-hero">
+        <div class="hero-icon">
+          <icon-mdi-account-plus-outline />
+        </div>
+        <!-- <h1>智能菜谱</h1>
+        <p>记录健康饮食，生成更懂你的每一餐</p> -->
         <h3>创建你的智能菜谱账号</h3>
       </section>
 
@@ -67,6 +77,11 @@ async function handleRegister() {
           <input v-model="email" type="email" placeholder="输入邮箱" />
         </label>
 
+        <label class="field">
+          <span class="field-icon"><icon-mdi-shield-key-outline /></span>
+          <input v-model="emailCode" type="text" placeholder="输入邮箱验证码" />
+        </label>
+
         <button class="auth-button" type="button" :disabled="loading" @click="handleRegister">
           {{ loading ? '注册中...' : '注册' }}
         </button>
@@ -76,7 +91,7 @@ async function handleRegister() {
         <div class="action-row">
           <button type="button" class="text-button" @click="router.push('/user/login')">返回登录</button>
           <button type="button" class="text-button" @click="router.push('/user/forgot-password')">
-            找回密码
+            修改密码
           </button>
         </div>
       </section>

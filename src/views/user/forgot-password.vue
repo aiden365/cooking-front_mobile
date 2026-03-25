@@ -28,7 +28,14 @@ function handleReset() {
     <div class="auth-overlay" />
 
     <div class="auth-shell">
-      <section class="auth-hero">
+      <!-- <section class="auth-hero">
+        <div class="hero-icon">
+          <icon-mdi-lock-reset />
+        </div>
+        <h3>找回你的账号密码</h3>
+      </section> -->
+
+      <section class="login-hero">
         <div class="hero-icon">
           <icon-mdi-lock-reset />
         </div>
@@ -45,13 +52,14 @@ function handleReset() {
           <span class="field-icon"><icon-mdi-email-outline /></span>
           <input v-model="email" type="email" placeholder="请输入邮箱" />
         </label>
+        
 
         <label class="field">
           <span class="field-icon"><icon-mdi-shield-key-outline /></span>
           <input v-model="verifyCode" type="text" placeholder="请输入验证码" />
         </label>
 
-        <button class="auth-button" type="button" @click="handleReset">找回密码</button>
+        <button class="auth-button" type="button" @click="handleReset">修改密码</button>
 
         <p v-if="message" class="message-text">{{ message }}</p>
 
