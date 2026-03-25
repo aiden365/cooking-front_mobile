@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { CircleClose, Left, Search2, StarN, TriangleDown } from '@nutui/icons-vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getDishSearchList, type DishItem, type DishSearchParams } from '../../api/dish'
 
 defineOptions({
   name: 'DishSearch',
 })
 
+const route = useRoute()
 const router = useRouter()
-const keyword = ref('红烧排骨')
+const keyword = ref('')
 const sortBy = ref<DishSearchParams['sortBy']>('comprehensive')
 const withVideo = ref(false)
 const loading = ref(false)
@@ -30,7 +31,7 @@ async function loadSearchList() {
   errorMessage.value = ''
 
   try {
-    /* const response = await getDishSearchList({
+    const response = await getDishSearchList({
       keyword: keyword.value,
       sortBy: sortBy.value,
       withVideo: withVideo.value,
@@ -39,7 +40,7 @@ async function loadSearchList() {
     })
 
     dishes.value = response.data.list
-    total.value = response.data.total */
+    total.value = response.data.total
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '搜索失败'
   } finally {
@@ -61,6 +62,10 @@ function clearKeyword() {
   loadSearchList()
 }
 
+function applyKeywordFromRoute() {
+  keyword.value = String(route.query.keyword || '').trim()
+}
+
 function goDetail(id?: number) {
   if (!id) return
   router.push(`/dish/detail/${id}`)
@@ -70,7 +75,16 @@ watch([sortBy, withVideo], () => {
   loadSearchList()
 })
 
+watch(
+  () => route.query.keyword,
+  () => {
+    applyKeywordFromRoute()
+    loadSearchList()
+  },
+)
+
 onMounted(() => {
+  applyKeywordFromRoute()
   loadSearchList()
 })
 </script>

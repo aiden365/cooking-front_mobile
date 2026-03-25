@@ -11,7 +11,13 @@ import TabBar from './components/TabBar.vue'
 const route = useRoute()
 
 const showTabBar = computed(() =>
-  !['DishDetail', 'DishIndividual', 'DishList', 'Login', 'Register', 'ForgotPassword'].includes(
+  ![
+    'DishDetail',
+    'DishIndividual',
+    'Login',
+    'Register',
+    'ForgotPassword',
+  ].includes(
     String(route.name),
   ),
 )
