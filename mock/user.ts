@@ -105,4 +105,14 @@ export function setupUserMock() {
     message: '获取用户标签成功',
     data: [1, 3, 7, 12],
   }))
+
+  Mock.mock(/\/api\/user\/label$/, 'post', ({ body }) => {
+    const payload = body ? JSON.parse(body) : {}
+
+    return {
+      code: 200,
+      message: '保存用户标签成功',
+      data: payload,
+    }
+  })
 }
