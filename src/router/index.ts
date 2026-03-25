@@ -17,6 +17,11 @@ const routes = [
     component: () => import('../views/dish/dish-list.vue'),
   },
   {
+    path: '/dish/search',
+    name: 'DishSearch',
+    component: () => import('../views/dish/dish-search.vue'),
+  },
+  {
     path: '/dish/individual',
     name: 'DishIndividual',
     component: () => import('../views/dish/dish-individual.vue'),
