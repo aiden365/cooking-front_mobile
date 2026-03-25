@@ -21,6 +21,14 @@ export interface UserCollectGroup {
   dishes: UserCollectedDish[]
 }
 
+export interface UserShareItem {
+  id: number
+  title: string
+  cover: string
+  likes: number
+  tags: string[]
+}
+
 export function getUserProfile() {
   return request<UserProfileForm>({
     url: '/user/profile',
@@ -39,6 +47,13 @@ export function updateUserProfile(data: UserProfileForm) {
 export function getUserCollectList() {
   return request<UserCollectGroup[]>({
     url: '/user/collects',
+    method: 'get',
+  })
+}
+
+export function getUserShareList() {
+  return request<UserShareItem[]>({
+    url: '/user/shares',
     method: 'get',
   })
 }

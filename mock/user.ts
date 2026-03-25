@@ -1,4 +1,6 @@
 import Mock from 'mockjs'
+import background1 from '../src/assets/img/background1.png'
+import bowl from '../src/assets/img/bowl.png'
 import dish1 from '../src/assets/img/dish1.png'
 import dish2 from '../src/assets/img/dish2.png'
 
@@ -59,6 +61,41 @@ export function setupUserMock() {
             collectNum: '1.2w',
           },
         ],
+      },
+    ],
+  }))
+
+  Mock.mock(/\/api\/user\/shares$/, 'get', () => ({
+    code: 200,
+    message: '获取我的分享成功',
+    data: [
+      {
+        id: 201,
+        title: '哈哈哈很美味~',
+        cover: background1,
+        likes: 93,
+        tags: ['荷塘小炒', '清爽'],
+      },
+      {
+        id: 202,
+        title: '非常成功的一道菜，家里人都说比外面做得还香还下饭',
+        cover: dish2,
+        likes: 126,
+        tags: ['皮蛋豆腐', '凉拌'],
+      },
+      {
+        id: 203,
+        title: '哈哈哈很美味~',
+        cover: dish1,
+        likes: 93,
+        tags: ['麻辣小龙虾', '夜宵'],
+      },
+      {
+        id: 204,
+        title: '来交作业啦',
+        cover: bowl,
+        likes: 93,
+        tags: ['时蔬拼盘', '减脂'],
       },
     ],
   }))
