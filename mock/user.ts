@@ -5,14 +5,23 @@ export function setupUserMock() {
     code: 200,
     message: '获取用户信息成功',
     data: {
-      id: 10001,
-      nickname: '小厨同学',
-      avatar: Mock.Random.image('120x120', '#F5F5F5', '#333333', 'Avatar'),
-      healthGoal: '控制油盐摄入，保持营养均衡',
-      allergies: ['花生'],
-      favoriteCuisine: ['家常菜', '低脂餐'],
+      name: '芒果爱酸奶',
+      email: 'maoguoasn365@qq.com',
+      gender: '女',
+      height: '',
+      weight: '60',
     },
   }))
+
+  Mock.mock(/\/api\/user\/profile$/, 'post', ({ body }) => {
+    const payload = body ? JSON.parse(body) : {}
+
+    return {
+      code: 200,
+      message: '保存个人信息成功',
+      data: payload,
+    }
+  })
 
   Mock.mock(/\/api\/user\/label\/\d+$/, 'get', () => ({
     code: 200,
