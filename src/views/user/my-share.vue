@@ -1,5 +1,4 @@
-<script setup lang="ts">
-import { Left, Search2, HeartN } from '@nutui/icons-vue'
+<script setup lang="ts">import { Left, Search2, HeartN } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -235,3 +234,4 @@ onMounted(() => {
   text-align: center;
 }
 </style>
+emplate>
