@@ -10,6 +10,9 @@ import IconsResolver from "unplugin-icons/resolver";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    host: '0.0.0.0', // 指定主机名
+  },
   plugins: [
     vue(),
     // 开启 unplugin 插件，自动引入 NutUI 组件

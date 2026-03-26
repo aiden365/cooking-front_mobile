@@ -1,57 +1,22 @@
 <script setup lang="ts">
+import { CalendarCard } from '@nutui/nutui'
 import { Left, PlayCircleFill } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getUserDietPlan, type UserDietMeal } from '../../api/user'
-import MdiChevronLeft from '~icons/mdi/chevron-left'
-import MdiChevronRight from '~icons/mdi/chevron-right'
 
 defineOptions({
   name: 'MyDiet',
 })
-
-type WeekDay = {
-  label: string
-  value: Date
-  dateKey: string
-}
 
 const router = useRouter()
 const loading = ref(true)
 const selectedDate = ref(startOfDay(new Date()))
 const meals = ref<UserDietMeal[]>([])
 
-const weekLabels = ['日', '一', '二', '三', '四', '五', '六']
-
-const weekDates = computed<WeekDay[]>(() => {
-  const start = getWeekStart(selectedDate.value)
-
-  return Array.from({ length: 7 }, (_, index) => {
-    const value = new Date(start)
-    value.setDate(start.getDate() + index)
-
-    return {
-      label: weekLabels[value.getDay()],
-      value,
-      dateKey: formatDateKey(value),
-    }
-  })
-})
-
-const calendarTitle = computed(
-  () => `${String(selectedDate.value.getMonth() + 1).padStart(2, '0')}月 ${selectedDate.value.getFullYear()}年`,
-)
-
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}
-
-function getWeekStart(date: Date) {
-  const current = startOfDay(date)
-  const diff = current.getDay()
-  current.setDate(current.getDate() - diff)
-  return current
 }
 
 function formatDateKey(date: Date) {
@@ -60,35 +25,8 @@ function formatDateKey(date: Date) {
   ).padStart(2, '0')}`
 }
 
-function isToday(date: Date) {
-  return formatDateKey(date) === formatDateKey(new Date())
-}
-
-function isSelected(date: Date) {
-  return formatDateKey(date) === formatDateKey(selectedDate.value)
-}
-
 function goBack() {
   router.push('/user/home')
-}
-
-function goPrevWeek() {
-  const next = new Date(selectedDate.value)
-  next.setDate(next.getDate() - 7)
-  selectedDate.value = next
-  void loadDietPlan()
-}
-
-function goNextWeek() {
-  const next = new Date(selectedDate.value)
-  next.setDate(next.getDate() + 7)
-  selectedDate.value = next
-  void loadDietPlan()
-}
-
-function selectDate(date: Date) {
-  selectedDate.value = startOfDay(date)
-  void loadDietPlan()
 }
 
 function navigateToDishList() {
@@ -119,6 +57,14 @@ async function loadDietPlan() {
 onMounted(() => {
   void loadDietPlan()
 })
+
+watch(selectedDate, (value, oldValue) => {
+  if (!value || (oldValue && formatDateKey(value) === formatDateKey(oldValue))) {
+    return
+  }
+
+  void loadDietPlan()
+})
 </script>
 
 <template>
@@ -133,33 +79,7 @@ onMounted(() => {
 
     <section class="diet-content">
       <section class="calendar-card">
-        <div class="calendar-nav">
-          <button class="calendar-arrow" type="button" @click="goPrevWeek">
-            <MdiChevronLeft />
-          </button>
-          <span class="calendar-title">{{ calendarTitle }}</span>
-          <button class="calendar-arrow" type="button" @click="goNextWeek">
-            <MdiChevronRight />
-          </button>
-        </div>
-
-        <div class="calendar-grid">
-          <button
-            v-for="item in weekDates"
-            :key="item.dateKey"
-            class="calendar-day"
-            :class="{
-              'calendar-day-selected': isSelected(item.value),
-              'calendar-day-weekend': item.value.getDay() === 0 || item.value.getDay() === 6,
-            }"
-            type="button"
-            @click="selectDate(item.value)"
-          >
-            <span class="calendar-week">{{ item.label }}</span>
-            <span class="calendar-date">{{ item.value.getDate() }}</span>
-            <span v-if="isToday(item.value)" class="calendar-today">今</span>
-          </button>
-        </div>
+        <CalendarCard v-model="selectedDate" type="single" />
       </section>
 
       <section class="meal-list">
@@ -243,88 +163,95 @@ onMounted(() => {
 }
 
 .calendar-card {
-  padding: 18px 16px 14px;
+  padding: 8px 10px 10px;
   border: 1px dashed #ff8c80;
   border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
 }
 
-.calendar-nav {
-  display: flex;
+:deep(.nut-calendarcard) {
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+:deep(.nut-calendarcard-header) {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
   align-items: center;
-  justify-content: center;
-  gap: 18px;
-  margin-bottom: 20px;
+  padding: 8px 4px 14px;
 }
 
-.calendar-title {
+:deep(.nut-calendarcard-header-title) {
+  justify-self: center;
   color: #6f6f6f;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 500;
 }
 
-.calendar-arrow {
+:deep(.nut-calendarcard-header-left),
+:deep(.nut-calendarcard-header-right) {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
+  gap: 12px;
+  margin: 0;
   color: #a5a5a5;
-  background: transparent;
-  border: none;
+  line-height: 1;
 }
 
-.calendar-grid {
+:deep(.nut-calendarcard-header-left) {
+  justify-self: start;
+}
+
+:deep(.nut-calendarcard-header-right) {
+  justify-self: end;
+}
+
+:deep(.nut-calendarcard-content) {
+  padding: 0;
+}
+
+:deep(.nut-calendarcard-days) {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  gap: 0 0;
+  width: 100%;
 }
 
-.calendar-day {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 8px 0 12px;
+:deep(.nut-calendarcard-day) {
+  width: auto;
+  height: 58px;
+  margin-bottom: 0;
   color: #111111;
-  background: transparent;
-  border: none;
+  font-size: 17px;
   border-radius: 10px;
 }
 
-.calendar-day-weekend .calendar-week {
-  color: #ff7667;
-}
-
-.calendar-week {
+:deep(.nut-calendarcard-day.header) {
+  height: 38px;
   font-size: 17px;
   font-weight: 600;
 }
 
-.calendar-date {
-  font-size: 19px;
-  font-weight: 700;
+:deep(.nut-calendarcard-day.weekend) {
+  color: #ff7667;
 }
 
-.calendar-day-selected {
-  color: #ffffff;
+:deep(.nut-calendarcard-day.active) {
   background: #ff6f63;
 }
 
-.calendar-day-selected .calendar-week,
-.calendar-day-selected .calendar-date,
-.calendar-day-selected .calendar-today {
-  color: #ffffff;
+:deep(.nut-calendarcard-day.prev),
+:deep(.nut-calendarcard-day.next) {
+  color: #d2d2d2;
 }
 
-.calendar-today {
-  position: absolute;
-  top: 34px;
-  right: 8px;
-  color: #ff7667;
+:deep(.nut-calendarcard-day-top),
+:deep(.nut-calendarcard-day-bottom) {
   font-size: 11px;
 }
-
 .meal-list {
   margin-top: 52px;
 }
@@ -451,3 +378,4 @@ onMounted(() => {
   text-align: center;
 }
 </style>
+emplate>
