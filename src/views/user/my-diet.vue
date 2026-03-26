@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { CalendarCard } from '@nutui/nutui'
 import { Left, PlayCircleFill } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
 import { onMounted, ref, watch } from 'vue'
@@ -10,9 +9,13 @@ defineOptions({
   name: 'MyDiet',
 })
 
+const selectedDate = ref(new Date('2026-03-27'))
+const onChange = (val: Date) => {
+  console.log(val)
+}
 const router = useRouter()
 const loading = ref(true)
-const selectedDate = ref(startOfDay(new Date()))
+
 const meals = ref<UserDietMeal[]>([])
 
 function startOfDay(date: Date) {
@@ -74,14 +77,10 @@ watch(selectedDate, (value, oldValue) => {
         <Left size="18" />
       </button>
       <h1 class="page-title">饮食记录</h1>
-      <div class="header-space" />
+      <div class="header-space"></div>
     </header>
-
+    <nut-calendar-card v-model="selectedDate" @change="onChange"></nut-calendar-card>
     <section class="diet-content">
-      <section class="calendar-card">
-        <CalendarCard v-model="selectedDate" type="single" />
-      </section>
-
       <section class="meal-list">
         <div v-if="loading" class="state-text">正在加载饮食记录...</div>
         <section v-for="meal in meals" v-else :key="meal.key" class="meal-section">
@@ -169,89 +168,26 @@ watch(selectedDate, (value, oldValue) => {
   overflow: hidden;
   background: #ffffff;
 }
-
-:deep(.nut-calendarcard) {
-  border-radius: 0;
-  box-shadow: none;
-  overflow: visible;
+:deep(.nut-calendarcard){
+  margin: 0 9px;
+}
+:deep(.nut-calendarcard-content){
+  border-style: dotted;
+  border-color: #ff6f63cf;
+  margin: 0 6px;
+  border-radius: 13px;
 }
 
-:deep(.nut-calendarcard-header) {
-  display: grid;
-  grid-template-columns: 72px 1fr 72px;
-  align-items: center;
-  padding: 8px 4px 14px;
+:deep(.nut-calendarcard-day){
+  height: 39px;
+  margin-bottom: 0px;
+  width: 14%;
 }
 
-:deep(.nut-calendarcard-header-title) {
-  justify-self: center;
-  color: #6f6f6f;
-  font-size: 20px;
-  font-weight: 500;
+:deep(.nut-calendarcard-day.active){
+  background-color: #ff6f63;
 }
 
-:deep(.nut-calendarcard-header-left),
-:deep(.nut-calendarcard-header-right) {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  color: #a5a5a5;
-  line-height: 1;
-}
-
-:deep(.nut-calendarcard-header-left) {
-  justify-self: start;
-}
-
-:deep(.nut-calendarcard-header-right) {
-  justify-self: end;
-}
-
-:deep(.nut-calendarcard-content) {
-  padding: 0;
-}
-
-:deep(.nut-calendarcard-days) {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0 0;
-  width: 100%;
-}
-
-:deep(.nut-calendarcard-day) {
-  width: auto;
-  height: 58px;
-  margin-bottom: 0;
-  color: #111111;
-  font-size: 17px;
-  border-radius: 10px;
-}
-
-:deep(.nut-calendarcard-day.header) {
-  height: 38px;
-  font-size: 17px;
-  font-weight: 600;
-}
-
-:deep(.nut-calendarcard-day.weekend) {
-  color: #ff7667;
-}
-
-:deep(.nut-calendarcard-day.active) {
-  background: #ff6f63;
-}
-
-:deep(.nut-calendarcard-day.prev),
-:deep(.nut-calendarcard-day.next) {
-  color: #d2d2d2;
-}
-
-:deep(.nut-calendarcard-day-top),
-:deep(.nut-calendarcard-day-bottom) {
-  font-size: 11px;
-}
 .meal-list {
   margin-top: 52px;
 }
