@@ -165,4 +165,81 @@ export function setupUserMock() {
     message: '删除营养目标成功',
     data: null,
   }))
+
+  Mock.mock(/\/api\/user\/diet-plan(\?.*)?$/, 'get', ({ url }) => {
+    const currentUrl = new URL(url, 'https://mock.local')
+    const date = currentUrl.searchParams.get('date') || ''
+
+    const today = new Date()
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
+      today.getDate(),
+    ).padStart(2, '0')}`
+
+    const mealData =
+      date === todayKey
+        ? [
+            {
+              key: 'breakfast',
+              label: '早餐',
+              dishes: [],
+            },
+            {
+              key: 'lunch',
+              label: '午餐',
+              dishes: [
+                {
+                  id: 301,
+                  name: '红烧排骨',
+                  cover: dish1,
+                  tags: ['家常菜', '零厨艺'],
+                  meta: '2人做过 | 5 收藏',
+                },
+                {
+                  id: 302,
+                  name: '麻婆豆腐',
+                  cover: dish2,
+                  tags: ['家常菜', '用料少'],
+                  meta: '2做过 | 2收藏',
+                },
+              ],
+            },
+            {
+              key: 'dinner',
+              label: '晚餐',
+              dishes: [
+                {
+                  id: 303,
+                  name: '干锅花菜',
+                  cover: background1,
+                  tags: ['家常菜', '零厨艺'],
+                  meta: '10人做过 | 0收藏',
+                  hasVideo: true,
+                },
+              ],
+            },
+          ]
+        : [
+            {
+              key: 'breakfast',
+              label: '早餐',
+              dishes: [],
+            },
+            {
+              key: 'lunch',
+              label: '午餐',
+              dishes: [],
+            },
+            {
+              key: 'dinner',
+              label: '晚餐',
+              dishes: [],
+            },
+          ]
+
+    return {
+      code: 200,
+      message: '获取饮食计划成功',
+      data: mealData,
+    }
+  })
 }

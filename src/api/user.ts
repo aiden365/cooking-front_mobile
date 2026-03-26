@@ -49,6 +49,21 @@ export interface UserNutritionPayload {
   aimValue: string
 }
 
+export interface UserDietDish {
+  id: number
+  name: string
+  cover: string
+  tags: string[]
+  meta: string
+  hasVideo?: boolean
+}
+
+export interface UserDietMeal {
+  key: 'breakfast' | 'lunch' | 'dinner'
+  label: '早餐' | '午餐' | '晚餐'
+  dishes: UserDietDish[]
+}
+
 export function getUserProfile() {
   return request<UserProfileForm>({
     url: '/user/profile',
@@ -104,5 +119,13 @@ export function deleteUserNutritionItem(id: number) {
   return request<null>({
     url: `/user/nutrition/${id}`,
     method: 'delete',
+  })
+}
+
+export function getUserDietPlan(date: string) {
+  return request<UserDietMeal[]>({
+    url: '/user/diet-plan',
+    method: 'get',
+    params: { date },
   })
 }
