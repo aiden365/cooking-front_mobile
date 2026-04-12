@@ -1,32 +1,40 @@
 import { request } from './request'
+import {UserShareItem} from "./user";
 
 export interface SystemLabel {
   id: number
-  name: string
+  labelName: string
 }
 
-export interface UserLabelPayload {
-  userId: number
-  labelIds: number[]
+export interface SystemLabelPage {
+  code: number;
+  data: {
+    records: SystemLabel[];
+    total: number;
+    current: number;
+    size: number;
+  };
+  message: string;
 }
 
-export function getSystemLabels() {
-  return request<SystemLabel[]>({
-    url: '/system/label',
-    method: 'get',
+export function getSystemLabels(data:any) {
+  return request<SystemLabelPage>({
+    url: 'label/page',
+    method: 'post',
+    data
   })
 }
 
-export function getUserLabels(userId: number | string) {
+export function getUserLabels() {
   return request<number[]>({
-    url: `/user/label/${userId}`,
-    method: 'get',
+    url: `/user/labels`,
+    method: 'post',
   })
 }
 
-export function updateUserLabels(data: UserLabelPayload) {
+export function updateUserLabels(data: number[]) {
   return request<null>({
-    url: '/user/label',
+    url: '/user/saveLabels',
     method: 'post',
     data,
   })

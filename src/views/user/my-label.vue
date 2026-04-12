@@ -11,7 +11,6 @@ defineOptions({
 
 const router = useRouter()
 const userId = 10001
-const pageSize = 8
 
 const keyword = ref('')
 const appliedKeyword = ref('')
@@ -21,18 +20,6 @@ const saving = ref(false)
 const systemLabels = ref<SystemLabel[]>([])
 const selectedIds = ref<number[]>([])
 
-const filteredLabels = computed(() => {
-  const value = appliedKeyword.value.trim()
-
-  if (!value) {
-    return systemLabels.value
-  }
-
-  return systemLabels.value.filter((item) => item.name.includes(value))
-})
-
-const visibleLabels = computed(() => filteredLabels.value.slice(0, currentPage.value * pageSize))
-const hasMore = computed(() => visibleLabels.value.length < filteredLabels.value.length)
 
 function goBack() {
   router.push('/user/home')
@@ -41,6 +28,7 @@ function goBack() {
 function submitSearch() {
   appliedKeyword.value = keyword.value.trim()
   currentPage.value = 1
+  loadLabelData();
 }
 
 function toggleLabel(id: number) {
@@ -56,24 +44,20 @@ function isSelected(id: number) {
   return selectedIds.value.includes(id)
 }
 
-function loadMore() {
-  if (!hasMore.value) {
-    return
-  }
-
-  currentPage.value += 1
-}
 
 async function loadLabelData() {
   loading.value = true
 
   try {
     const [systemResponse, userResponse] = await Promise.all([
-      getSystemLabels(),
-      getUserLabels(userId),
+      getSystemLabels({
+        pageNum: currentPage.value,
+        pageSize: -1,
+        search: appliedKeyword.value,
+      }),
+      getUserLabels(),
     ])
-
-    systemLabels.value = systemResponse.data
+    systemLabels.value = systemResponse.data.records;
     selectedIds.value = userResponse.data
   } catch (error) {
     showToast.fail(error instanceof Error ? error.message : '标签数据加载失败')
@@ -86,10 +70,8 @@ async function handleSave() {
   saving.value = true
 
   try {
-    await updateUserLabels({
-      userId,
-      labelIds: selectedIds.value,
-    })
+
+    await updateUserLabels(selectedIds.value);
     showToast.success('保存成功')
   } catch (error) {
     showToast.fail(error instanceof Error ? error.message : '保存失败，请稍后再试')
@@ -132,23 +114,19 @@ onMounted(() => {
       <div v-if="loading" class="state-text">正在加载标签...</div>
       <template v-else>
         <button
-          v-for="item in visibleLabels"
+          v-for="item in systemLabels"
           :key="item.id"
           class="label-row"
           type="button"
           @click="toggleLabel(item.id)"
         >
-          <span class="label-name">{{ item.name }}</span>
+          <span class="label-name">{{ item.labelName }}</span>
           <span class="label-check" :class="{ 'label-check-active': isSelected(item.id) }">
             <Check v-if="isSelected(item.id)" size="12" color="#ffffff" />
           </span>
         </button>
 
-        <div v-if="!visibleLabels.length" class="state-text">没有找到相关标签</div>
-
-        <button v-else-if="hasMore" class="load-more" type="button" @click="loadMore">
-          加载更多标签
-        </button>
+        <div v-if="!systemLabels.length" class="state-text">没有找到相关标签</div>
       </template>
     </section>
 
