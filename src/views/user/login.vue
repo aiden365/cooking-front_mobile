@@ -9,15 +9,14 @@ defineOptions({
 })
 
 const router = useRouter()
-const username = ref('')
+const userCode = ref('')
 const password = ref('')
-const email = ref('')
 const loading = ref(false)
 const message = ref('')
 
 async function handleLogin() {
-  if (!username.value || !password.value || !email.value) {
-    message.value = '请完整填写用户名、密码和邮箱'
+  if (!userCode.value || !password.value) {
+    message.value = '请完整填写用户名和密码'
     return
   }
 
@@ -26,12 +25,20 @@ async function handleLogin() {
 
   try {
     const response = await login({
-      username: username.value,
+      userCode: userCode.value,
       password: password.value,
     })
 
-    localStorage.setItem('token', response.data.token)
-    message.value = `欢迎回来，${response.data.nickname}`
+    localStorage.setItem('token', response.data.accessToken)
+    localStorage.setItem(
+      'userInfo',
+      JSON.stringify({
+        id: response.data.id,
+        userName: response.data.userName,
+        expires: response.data.expires,
+      }),
+    )
+    message.value = `欢迎回来，${response.data.userName}`
     router.push('/user/home')
   } catch (error) {
     message.value = error instanceof Error ? error.message : '登录失败，请稍后再试'
@@ -58,7 +65,7 @@ async function handleLogin() {
       <section class="login-panel">
         <label class="field">
           <span class="field-icon"><icon-mdi-account-outline /></span>
-          <input v-model="username" type="text" placeholder="请输入用户名" />
+          <input v-model="userCode" type="text" placeholder="请输入用户名" />
         </label>
 
         <label class="field">

@@ -8,6 +8,7 @@ export interface ApiResponse<T> {
   code: number
   message: string
   data: T
+  success?: boolean
 }
 
 const service: AxiosInstance = axios.create({
@@ -31,9 +32,11 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    const message = error.response?.data
-      ? '服务器响应异常'
-      : error.message || '网络异常，请稍后再试'
+    const serverMessage =
+      typeof error.response?.data === 'object' && error.response?.data !== null
+        ? String((error.response.data as { message?: string }).message || '')
+        : ''
+    const message = serverMessage || error.message || '网络异常，请稍后再试'
 
     return Promise.reject(new Error(message))
   },
@@ -43,7 +46,7 @@ export function request<T>(config: AxiosRequestConfig) {
   return service.request<ApiResponse<T>>(config).then((response) => {
     const { data } = response
 
-    if (data.code !== 200) {
+    if (![0, 200].includes(data.code)) {
       return Promise.reject(new Error(data.message || '请求失败'))
     }
 

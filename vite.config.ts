@@ -10,9 +10,16 @@ import IconsResolver from "unplugin-icons/resolver";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: "/cooking",
+  base: "",
   server: {
     host: '0.0.0.0', // 指定主机名
+    proxy: {
+      '/api': {
+        target: 'http://192.168.50.100:8082',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
   },
   plugins: [
     vue(),

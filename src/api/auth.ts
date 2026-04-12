@@ -1,25 +1,31 @@
 import { request } from './request'
 
 export interface LoginParams {
+  userCode: string
+  password: string
+}
+
+export interface RegisterParams {
   username: string
   password: string
 }
 
 export interface LoginResult {
-  token: string
-  userId: number
-  nickname: string
+  id: string
+  userName: string
+  accessToken: string
+  expires: string
 }
 
 export function login(data: LoginParams) {
   return request<LoginResult>({
-    url: '/auth/login',
+    url: '/user/login',
     method: 'post',
     data,
   })
 }
 
-export function register(data: LoginParams) {
+export function register(data: RegisterParams) {
   return request<{ userId: number }>({
     url: '/auth/register',
     method: 'post',
