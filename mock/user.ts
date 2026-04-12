@@ -48,43 +48,43 @@ export function setupUserMock() {
     }
   })
 
-  Mock.mock(/\/api\/user\/collects$/, 'get', () => ({
-    code: 200,
-    message: '获取收藏列表成功',
+/*  Mock.mock(/\/api\/collect\/day-group$/, 'post', () => ({
+    code: 0,
+    message: 'success',
     data: [
       {
-        date: '2026.01.11',
+        day: '2026-01-11',
         dishes: [
           {
             id: 101,
             name: '青椒炒鸡蛋',
             img: dish2,
             labels: '家常菜，零厨艺，快手菜',
-            collectNum: '1.2w',
+            collectTotalNum: 12000,
           },
           {
             id: 102,
             name: '西红柿炒蛋',
             img: dish1,
             labels: '家常菜，零厨艺，下饭菜',
-            collectNum: '9855',
+            collectTotalNum: 9855,
           },
         ],
       },
       {
-        date: '2026.01.10',
+        day: '2026-01-10',
         dishes: [
           {
             id: 103,
             name: '红烧排骨',
             img: dish1,
             labels: '家常菜，用料少',
-            collectNum: '1.2w',
+            collectTotalNum: 12000,
           },
         ],
       },
     ],
-  }))
+  }))*/
 
   Mock.mock(/\/api\/user\/shares$/, 'get', () => ({
     code: 200,

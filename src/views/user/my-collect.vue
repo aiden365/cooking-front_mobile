@@ -13,6 +13,7 @@ defineOptions({
 const router = useRouter()
 const loading = ref(true)
 const collectGroups = ref<UserCollectGroup[]>([])
+const backendBaseUrl = 'http://192.168.50.100:8082'
 
 const hasData = computed(() => collectGroups.value.length > 0)
 
@@ -27,10 +28,42 @@ function goBack() {
   router.push('/user/home')
 }
 
+
+
+function formatCollectNum(value: number | string) {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(1)}w`
+  }
+
+  return String(value)
+}
+
+function formatDate(value: string) {
+  return value.replace(/-/g, '.')
+}
+
+function resolveImageUrl(url: string) {
+  if (!url) {
+    return ''
+  }
+
+  if (/^https?:\/\//.test(url)) {
+    return url
+  }
+
+  return `${backendBaseUrl}${url.startsWith('/') ? url : `/${url}`}`
+}
+
 async function loadCollects() {
   loading.value = true
+  debugger;
 
   try {
+
     const response = await getUserCollectList()
     collectGroups.value = response.data
   } catch (error) {
@@ -59,14 +92,14 @@ onMounted(() => {
       <div v-if="loading" class="state-text">正在加载收藏菜谱...</div>
       <div v-else-if="!hasData" class="state-text">暂时还没有收藏内容</div>
       <template v-else>
-        <section v-for="group in collectGroups" :key="group.date" class="date-group">
+        <section v-for="group in collectGroups" :key="group.day" class="date-group">
           <div class="date-title">
-            <span>{{ group.date }}</span>
+            <span>{{ formatDate(group.day) }}</span>
             <MdiChevronDown class="date-arrow" />
           </div>
 
           <article v-for="dish in group.dishes" :key="dish.id" class="collect-card">
-            <img :src="dish.img" :alt="dish.name" class="dish-cover" />
+            <img :src="resolveImageUrl(dish.img)" :alt="dish.name" class="dish-cover" />
 
             <div class="dish-main">
               <h2 class="dish-name">{{ dish.name }}</h2>
@@ -79,7 +112,7 @@ onMounted(() => {
 
             <div class="dish-favorite">
               <StarN size="18" color="#b1b1b1" />
-              <span>{{ dish.collectNum }}</span>
+              <span>{{ formatCollectNum(dish.collectTotalNum) }}</span>
             </div>
           </article>
         </section>

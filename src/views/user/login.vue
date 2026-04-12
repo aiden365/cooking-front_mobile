@@ -9,8 +9,8 @@ defineOptions({
 })
 
 const router = useRouter()
-const userCode = ref('')
-const password = ref('')
+const userCode = ref('chenjiacheng365@qq.com')
+const password = ref('111222')
 const loading = ref(false)
 const message = ref('')
 

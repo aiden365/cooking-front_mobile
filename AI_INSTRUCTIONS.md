@@ -70,11 +70,12 @@ cooking-front_mobile
 ## 4. 后端接口信息
 - **后端服务地址:** http://192.168.50.100:8082
 - **请求方式:** 后端所有接口均为 POST 请求，接收的参数为 JSON 格式
-- 
+- **请求头:** 在请求头中添加 Authorization 字段，值为 Bearer + token，其中token 用户登录或注册时返回的accessToken，若未登录则为空，如：Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1p
+
 ```json5
 //后端接口相应结构
 {
-    //状态，0：成功，1000：操作失败
+    //状态，0：成功，1000：操作失败，10001：用户未登录
     "code":0,
     //消息，成功返回 'success', 失败则返回具体错误消息，如："用户名或密码错误"
     "message":"success",
@@ -118,8 +119,8 @@ cooking-front_mobile
   - [x] 我的饮食计划页面设计与实现 (已完成)
   - [x] 用户登录接口对接 (已完成)
   - [x] 用户注册接口对接 (已完成)
-  - [ ] 修改密码接口对接 (当前进行)
-    
+  - [x] 修改密码接口对接 (已完成)
+  - [x] 用户菜谱收藏接口对接 (当前进行)
 
 
 ```
@@ -130,36 +131,26 @@ cooking-front_mobile
 
 ## 6. 当前执行任务 (Current Task)
 > **开发者指令：** 
-> 现在，让我们开始`修改密码接口对接`吧
-> 1. 请在 `src/views/user/forgot-password.vue` 文件完成用户修改密码功能
-> 2. 在用户修改密码时，需发送邮件验证码给用户邮箱
-> 3. 验证码发送成功后，用户输入验证码和新的密码，调用修改密码接口提交
-> 4. 发送邮件验证码接口地址 post /user/sendEmailCode 接收参数 {email}  
-> 5. 修改密码接口地址 post /user/forgot-password 接收参数 {email,password} 
+> 现在，让我们开始`用户菜谱收藏接口对接`吧
+> 1. 请在 `src/views/user/my-collect.vue` 用户菜谱收藏功能接口对接
+> 2. 用户菜谱收藏接口地址 post /collect/day-group 接收参数 {userId} 为参数，接口响应示例如下：
+> 3. userId 为当前登录用户ID
 
 ```json5
 
-// 修改密码接口响应示例
+//用户菜谱收藏接口响应示例
+
 {
-	"code":0,
-	"data":null,
-	"message":"success",
-	"success":true
-}
-
-
-
-```
-
-```json5
-
-// 发送邮件验证码接口响应示例
-{
-	"code":0,
-	"data":null,
-	"message":"success",
-	"success":true
+  "code": 0,
+  "message": "success",
+  "data": [
+    {
+      "day": "2026-04-01",
+      "dishes":[
+        {"id":1,"name":"菜品1","img":"/UploadFiles/dish1.jpg","labels":"家常菜,快手菜","collectTotalNum":5}
+      ]
+    }
+  ]
 }
 
 ```
-

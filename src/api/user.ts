@@ -13,11 +13,11 @@ export interface UserCollectedDish {
   name: string
   img: string
   labels: string
-  collectNum: string
+  collectTotalNum: number | string
 }
 
 export interface UserCollectGroup {
-  date: string
+  day: string
   dishes: UserCollectedDish[]
 }
 
@@ -81,8 +81,9 @@ export function updateUserProfile(data: UserProfileForm) {
 
 export function getUserCollectList() {
   return request<UserCollectGroup[]>({
-    url: '/user/collects',
-    method: 'get',
+    url: '/collect/day-group',
+    method: 'post'
+
   })
 }
 
