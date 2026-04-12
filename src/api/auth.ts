@@ -12,6 +12,12 @@ export interface RegisterParams {
   emailCode: string
 }
 
+export interface ForgotPasswordParams {
+  email: string
+  password: string
+  verifyCode: string
+}
+
 export interface LoginResult {
   id: string
   userName: string
@@ -38,6 +44,14 @@ export function register(data: RegisterParams) {
 export function sendEmailCode(data: { email: string }) {
   return request<null>({
     url: '/user/sendEmailCode',
+    method: 'post',
+    data,
+  })
+}
+
+export function forgotPassword(data: ForgotPasswordParams) {
+  return request<null>({
+    url: '/user/forgot-password',
     method: 'post',
     data,
   })

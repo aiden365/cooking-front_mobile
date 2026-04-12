@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { showToast } from '@nutui/nutui'
+import { onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { forgotPassword, sendEmailCode } from '../../api/auth'
 import backgroundImage from '../../assets/img/background1.png'
 
 defineOptions({
@@ -8,19 +10,109 @@ defineOptions({
 })
 
 const router = useRouter()
-const username = ref('')
 const email = ref('')
 const verifyCode = ref('')
+const password = ref('')
+const loading = ref(false)
+const sendingCode = ref(false)
+const countdown = ref(0)
 const message = ref('')
+let countdownTimer: number | undefined
 
-function handleReset() {
-  if (!username.value || !email.value || !verifyCode.value) {
-    message.value = '请完整填写用户名、邮箱和验证码'
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function startCountdown() {
+  countdown.value = 60
+
+  countdownTimer = window.setInterval(() => {
+    if (countdown.value <= 1) {
+      countdown.value = 0
+
+      if (countdownTimer) {
+        window.clearInterval(countdownTimer)
+        countdownTimer = undefined
+      }
+
+      return
+    }
+
+    countdown.value -= 1
+  }, 1000)
+}
+
+async function handleSendEmailCode() {
+  if (!email.value) {
+    message.value = '请先输入邮箱'
+    showToast.text('请先输入邮箱')
     return
   }
 
-  message.value = '重置申请已提交，请前往邮箱查看后续指引'
+  if (!isValidEmail(email.value)) {
+    message.value = '请输入正确的邮箱地址'
+    showToast.text('请输入正确的邮箱地址')
+    return
+  }
+
+  if (sendingCode.value || countdown.value > 0) {
+    return
+  }
+
+  sendingCode.value = true
+  message.value = ''
+
+  try {
+    await sendEmailCode({
+      email: email.value.trim(),
+    })
+
+    message.value = '验证码已发送，请注意查收邮箱'
+    showToast.success('验证码已发送')
+    startCountdown()
+  } catch (error) {
+    message.value = error instanceof Error ? error.message : '验证码发送失败，请稍后再试'
+  } finally {
+    sendingCode.value = false
+  }
 }
+
+async function handleReset() {
+  if (!email.value || !verifyCode.value || !password.value) {
+    message.value = '请完整填写邮箱、验证码和新密码'
+    return
+  }
+
+  if (!isValidEmail(email.value)) {
+    message.value = '请输入正确的邮箱地址'
+    return
+  }
+
+  loading.value = true
+  message.value = ''
+
+  try {
+    await forgotPassword({
+      email: email.value.trim(),
+      verifyCode: verifyCode.value.trim(),
+      password: password.value,
+    })
+
+    message.value = '密码修改成功，请使用新密码登录'
+    showToast.success('密码修改成功')
+    router.push('/user/login')
+  } catch (error) {
+    message.value = error instanceof Error ? error.message : '密码修改失败，请稍后再试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  if (countdownTimer) {
+    window.clearInterval(countdownTimer)
+  }
+})
 </script>
 
 <template>
@@ -43,10 +135,6 @@ function handleReset() {
       </section>
 
       <section class="auth-panel">
-        <label class="field">
-          <span class="field-icon"><icon-mdi-account-outline /></span>
-          <input v-model="username" type="text" placeholder="请输入用户名" />
-        </label>
 
         <label class="field">
           <span class="field-icon"><icon-mdi-email-outline /></span>
@@ -54,12 +142,27 @@ function handleReset() {
         </label>
         
 
-        <label class="field">
+        <label class="field field-code">
           <span class="field-icon"><icon-mdi-shield-key-outline /></span>
           <input v-model="verifyCode" type="text" placeholder="请输入验证码" />
+          <button
+            class="code-button"
+            type="button"
+            :disabled="sendingCode || countdown > 0"
+            @click="handleSendEmailCode"
+          >
+            {{ sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s后重发` : '发送验证码' }}
+          </button>
         </label>
 
-        <button class="auth-button" type="button" @click="handleReset">修改密码</button>
+        <label class="field">
+          <span class="field-icon"><icon-mdi-lock-outline /></span>
+          <input v-model="password" type="password" placeholder="请输入新密码" />
+        </label>
+
+        <button class="auth-button" type="button" :disabled="loading" @click="handleReset">
+          {{ loading ? '提交中...' : '修改密码' }}
+        </button>
 
         <p v-if="message" class="message-text">{{ message }}</p>
 
@@ -164,6 +267,33 @@ function handleReset() {
   background: transparent;
   border: none;
   outline: none;
+}
+
+.field-code {
+  gap: 10px;
+}
+
+.code-button {
+  flex-shrink: 0;
+  min-width: 92px;
+  height: 34px;
+  padding: 0 10px;
+  color: rgb(255, 143, 132);
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 143, 132, 0.12);
+  border: none;
+  border-radius: 12px;
+}
+
+.code-button:disabled,
+.auth-button:disabled {
+  opacity: 0.72;
+}
+
+.code-button:disabled {
+  color: #b79f99;
+  background: rgba(183, 159, 153, 0.16);
 }
 
 .auth-button {

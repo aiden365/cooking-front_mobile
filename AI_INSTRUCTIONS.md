@@ -117,7 +117,8 @@ cooking-front_mobile
   - [x] 营养管理页面设计与实现 (已完成)
   - [x] 我的饮食计划页面设计与实现 (已完成)
   - [x] 用户登录接口对接 (已完成)
-  - [ ] 用户注册接口对接 (当前进行)
+  - [x] 用户注册接口对接 (已完成)
+  - [ ] 修改密码接口对接 (当前进行)
     
 
 
@@ -129,23 +130,19 @@ cooking-front_mobile
 
 ## 6. 当前执行任务 (Current Task)
 > **开发者指令：** 
-> 现在，让我们开始`用户注册接口对接`吧
-> 1. 在用户注册时，需发送邮件验证码给用户邮箱
-> 2. 验证码发送成功后，用户输入验证码，调用注册接口提交注册信息
-> 3. 发送邮件验证码接口地址 post /user/sendEmailCode 接收参数 {email} 响应信息如下 
-> 4. 注册接口地址 post /user/register 接收参数 {username, password, email,emailCode} 响应信息如下
+> 现在，让我们开始`修改密码接口对接`吧
+> 1. 请在 `src/views/user/forgot-password.vue` 文件完成用户修改密码功能
+> 2. 在用户修改密码时，需发送邮件验证码给用户邮箱
+> 3. 验证码发送成功后，用户输入验证码和新的密码，调用修改密码接口提交
+> 4. 发送邮件验证码接口地址 post /user/sendEmailCode 接收参数 {email}  
+> 5. 修改密码接口地址 post /user/forgot-password 接收参数 {email,password} 
 
 ```json5
 
-// 登录接口响应示例
+// 修改密码接口响应示例
 {
 	"code":0,
-	"data":{
-        "id":"超级管理员",
-		"userName":"超级管理员",
-		"accessToken":"e31dd9a4-ba35-420e-9fb6-4da1c5597d2d",
-		"expires":"2099/01/01 00:00:00"
-	},
+	"data":null,
 	"message":"success",
 	"success":true
 }
