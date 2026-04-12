@@ -48,7 +48,7 @@ export interface UserSharePage {
 export interface SharePageReq{
   pageNum: number
   pageSize: number
-  search?: string
+  dishName?: string
 }
 
 export interface SystemNutritionItem {

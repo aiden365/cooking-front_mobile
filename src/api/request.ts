@@ -4,12 +4,6 @@ import axios, {
   type AxiosRequestConfig,
 } from 'axios'
 
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T
-  success?: boolean
-}
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -42,8 +36,8 @@ service.interceptors.response.use(
   },
 )
 
-export function request<T>(config: AxiosRequestConfig) {
-  return service.request<ApiResponse<T>>(config).then((response) => {
+export function request(config: AxiosRequestConfig) {
+  return service.request(config).then((response) => {
     const { data } = response
 
     if (![0, 200].includes(data.code)) {

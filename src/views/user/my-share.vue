@@ -25,12 +25,11 @@ function submitSearch() {
 
 async function loadShares() {
   loading.value = true
-
   try {
     const response = await getUserShareList({
       pageNum: 1,
       pageSize: -1,
-      search: appliedKeyword.value.trim(),
+      dishName: appliedKeyword.value.trim(),
     })
     shareList.value = response.data.records;
   } catch (error) {
@@ -76,7 +75,7 @@ onMounted(() => {
       <article v-for="item in shareList" :key="item.id" class="share-card">
         <img :src="item.imgPath" class="share-cover" />
         <div class="share-card-body">
-          <h2 class="share-title">{{ item.dishName }}</h2>
+          <span class="share-title">{{ item.dishName }}</span>
           <div class="share-meta">
             <span class="share-likes">
               <HeartN size="17" color="#a9a9ad" />
@@ -192,21 +191,9 @@ onMounted(() => {
   padding: 14px 6px 0;
 }
 
-.share-title {
-  display: -webkit-box;
-  min-height: 50px;
-  margin: 0 0 10px;
-  overflow: hidden;
-  color: #232323;
-  font-size: 17px;
-  font-weight: 500;
-  line-height: 1.45;
-  text-overflow: ellipsis;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
 
 .share-meta {
+  margin-top: -17px;
   display: flex;
   justify-content: flex-end;
 }

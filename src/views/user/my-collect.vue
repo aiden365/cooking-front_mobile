@@ -99,7 +99,7 @@ onMounted(() => {
           </div>
 
           <article v-for="dish in group.dishes" :key="dish.id" class="collect-card">
-            <img :src="resolveImageUrl(dish.img)" :alt="dish.name" class="dish-cover" />
+            <img :src="dish.img"  class="dish-cover" />
 
             <div class="dish-main">
               <h2 class="dish-name">{{ dish.name }}</h2>
