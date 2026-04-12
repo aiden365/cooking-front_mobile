@@ -87,6 +87,7 @@ async function refreshList() {
 }
 
 async function loadMore() {
+  alert(1);
   await fetchShareList(currentPage.value + 1, false)
 }
 
@@ -164,6 +165,7 @@ onMounted(() => {
 .share-list-page {
   --top-panel-height: calc(env(safe-area-inset-top) + 102px);
   height: 100vh;
+  overflow: hidden;
   background: #ffffff;
 }
 
@@ -249,15 +251,18 @@ onMounted(() => {
 }
 
 .list-panel {
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
   padding-top: var(--top-panel-height);
-  margin-top: 20px;
   padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .list-content {
-  min-height: calc(60vh - var(--top-panel-height));
+  margin-top: 20px;
+  min-height: calc(100vh - var(--top-panel-height));
 }
 
 .share-grid {
