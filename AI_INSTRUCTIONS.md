@@ -108,6 +108,7 @@ cooking-front_mobile
 - [ ] **阶段 3: 菜品分享模块 ** 
   - [ ] 菜品分享页面设计与实现 
   - [x] 菜品分享列表页面设计与实现 (已完成)
+  - [ ] 菜品分享列表页面接口对接 (当前进行)
 - [ ] **阶段 4: 用户模块 **
   - [x] 用户登录页面设计与实现 (已完成)
   - [x] 个人中心页面设计与实现 (已完成)
@@ -121,8 +122,7 @@ cooking-front_mobile
   - [x] 用户注册接口对接 (已完成)
   - [x] 修改密码接口对接 (已完成)
   - [x] 用户菜谱收藏接口对接 (已完成)
-  - [ ] 营养管理页面接口对接 (当前进行)
-
+  - [x] 营养管理页面接口对接 (已完成)
 
 ```
 
@@ -132,26 +132,41 @@ cooking-front_mobile
 
 ## 6. 当前执行任务 (Current Task)
 > **开发者指令：** 
-> 现在，让我们开始`营养管理页面接口对接`吧
-> 1. 请在 `src/views/user/my-nutrition.vue` 页面及相关ts文件中完成接口对接工作 
-> 2. 首页，在进入该页面时，获取用户当前营养目标数据，并展示在页面上
-> 3. userId 为当前登录用户ID
+> 现在，让我们开始`菜品分享列表页面接口对接`吧
+> 1. 请在 `src/views/shares/share-list.vue` 页面及相关ts文件中完成接口对接工作
+> 2. 接口接收 {"pageNum":1,"pageSize":7,"dishName":""} 参数，其中dishName为搜索条件，默认为空。
+> 3. 在实现接口对接工作时，使用TS对象对接口请求和返回的数据进行类型定义
+> 4. 我发现当前页面缺少上拉分页功能和下拉刷新功能，在接口对接时请添加下拉分页功能和上拉刷新功能
+> 5. 接口返回的数据结构如下JSON所示
+> 6. 接口地址：post /share/page
+
 
 ```json5
 
-//用户菜谱收藏接口响应示例
+//用户分享列表接口返回数据结构
 
 {
-  "code": 0,
-  "message": "success",
-  "data": [
-    {
-      "day": "2026-04-01",
-      "dishes":[
-        {"id":1,"name":"菜品1","img":"/UploadFiles/dish1.jpg","labels":"家常菜,快手菜","collectTotalNum":5}
-      ]
-    }
-  ]
+  "code":0,
+  "data":{
+    "current":1,
+    "pages":1,
+    "records":[
+      {
+        "createTime":"2026-04-09 02:50:39",
+        "dishId":7,
+        "dishName":"西红柿炒鸡蛋",
+        "id":1,
+        "imgPath":"/UploadFile/xxx.png",
+        "startCount":0,
+        "userId":1,
+        "userName":"超级管理员"
+      }
+    ],
+    "size":7,
+    "total":2
+  },
+  "message":"success"
 }
+
 
 ```

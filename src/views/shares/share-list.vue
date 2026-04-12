@@ -1,56 +1,29 @@
 <script setup lang="ts">
 import { Left, Search2, HeartN } from '@nutui/icons-vue'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { showToast } from '@nutui/nutui'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-
-import backgroundImage from '../../assets/img/background1.png'
-import bowlImage from '../../assets/img/bowl.png'
-import dishImage1 from '../../assets/img/dish1.png'
-import dishImage2 from '../../assets/img/dish2.png'
+import { getSharePage, type ShareListItem } from '../../api/share'
 
 defineOptions({
   name: 'SharesList',
 })
 
-type ShareItem = {
-  id: number
-  title: string
-  author: string
-  likes: number
-  cover: string
-}
-
 const router = useRouter()
 const searchKeyword = ref('')
 const appliedKeyword = ref('')
-const pageSize = 4
+const shareList = ref<ShareListItem[]>([])
+const loading = ref(false)
+const refreshing = ref(false)
+const loadingMore = ref(false)
 const currentPage = ref(1)
-const isLoadingMore = ref(false)
+const totalPages = ref(1)
+const total = ref(0)
+const pageSize = 7
+const backendBaseUrl = 'http://192.168.50.100:8082'
 
-const shareList: ShareItem[] = [
-  { id: 1, title: '红烧排骨', author: '美食课代表', likes: 93, cover: dishImage1 },
-  { id: 2, title: '鸡蛋火腿炒青椒', author: '美食课代表', likes: 126, cover: dishImage2 },
-  { id: 3, title: '青椒炒鸡蛋', author: '美食课代表', likes: 93, cover: backgroundImage },
-  { id: 4, title: '西红柿炒蛋', author: '美食课代表', likes: 93, cover: bowlImage },
-  { id: 5, title: '蒜香排骨', author: '下厨达人', likes: 108, cover: dishImage1 },
-  { id: 6, title: '青椒火腿炒蛋', author: '家常菜小馆', likes: 87, cover: dishImage2 },
-  { id: 7, title: '番茄滑蛋', author: '每日一菜', likes: 76, cover: bowlImage },
-  { id: 8, title: '小炒鸡蛋', author: '烟火食堂', likes: 65, cover: backgroundImage },
-]
-
-const filteredShares = computed(() => {
-  const keyword = appliedKeyword.value.trim()
-
-  if (!keyword) {
-    return shareList
-  }
-
-  return shareList.filter((item) => item.title.includes(keyword))
-})
-
-const visibleShares = computed(() => filteredShares.value.slice(0, currentPage.value * pageSize))
-const hasMore = computed(() => visibleShares.value.length < filteredShares.value.length)
-const isEmpty = computed(() => filteredShares.value.length === 0)
+const hasMore = computed(() => currentPage.value < totalPages.value)
+const isEmpty = computed(() => !loading.value && shareList.value.length === 0)
 
 function goBack() {
   if (window.history.length > 1) {
@@ -61,40 +34,71 @@ function goBack() {
   router.push('/')
 }
 
-function submitSearch() {
-  appliedKeyword.value = searchKeyword.value.trim()
-  currentPage.value = 1
+function resolveImageUrl(url: string) {
+  if (!url) {
+    return ''
+  }
+
+  if (/^https?:\/\//.test(url)) {
+    return url
+  }
+
+  return `${backendBaseUrl}${url.startsWith('/') ? url : `/${url}`}`
 }
 
-function loadMore() {
-  if (!hasMore.value || isLoadingMore.value) {
+async function fetchShareList(pageNum = 1, reset = false) {
+  if (reset) {
+    loading.value = true
+  } else {
+    loadingMore.value = true
+  }
+
+  try {
+    const response = await getSharePage({
+      pageNum,
+      pageSize,
+      dishName: appliedKeyword.value,
+    })
+
+    const { records, current, pages, total: totalCount } = response.data
+    currentPage.value = current
+    totalPages.value = pages || 1
+    total.value = totalCount
+    shareList.value = reset ? records : [...shareList.value, ...records]
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '分享列表加载失败')
+  } finally {
+    loading.value = false
+    loadingMore.value = false
+    refreshing.value = false
+  }
+}
+
+async function refreshList() {
+  if (refreshing.value) {
     return
   }
 
-  isLoadingMore.value = true
+  refreshing.value = true
+  setTimeout(() => {
+    fetchShareList(1, true)
+  }, 3000)
 
-  window.setTimeout(() => {
-    currentPage.value += 1
-    isLoadingMore.value = false
-  }, 260)
 }
 
-function handleScroll() {
-  const scrollTop = window.scrollY || document.documentElement.scrollTop
-  const viewportHeight = window.innerHeight
-  const fullHeight = document.documentElement.scrollHeight
+async function loadMore() {
+  await fetchShareList(currentPage.value + 1, false)
+}
 
-  if (scrollTop + viewportHeight >= fullHeight - 120) {
-    loadMore()
-  }
+async function submitSearch() {
+  appliedKeyword.value = searchKeyword.value.trim()
+  totalPages.value = 1
+  currentPage.value = 1
+  await fetchShareList(1, true)
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll, { passive: true })
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
+  void fetchShareList(1, true)
 })
 </script>
 
@@ -124,37 +128,42 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <section v-if="!isEmpty" class="share-grid">
-      <article v-for="item in visibleShares" :key="item.id" class="share-card">
-        <img :src="item.cover" :alt="item.title" class="share-cover" />
-        <h2>{{ item.title }}</h2>
-        <div class="share-meta">
-          <span class="author">{{ item.author }}</span>
-          <span class="likes">
-            <HeartN size="17" color="#a9a9ad" />
-            <span>{{ item.likes }}</span>
-          </span>
-        </div>
-      </article>
+    <section class="list-panel">
+      <nut-infinite-loading :loading="loadingMore" :has-more="hasMore" @load-more="loadMore">
+        <nut-pull-refresh :model-value="refreshing" @refresh="refreshList">
+          <div class="list-content">
+            <div v-if="loading" class="state-box">正在加载分享内容...</div>
+            <template v-else-if="!isEmpty">
+              <section class="share-grid">
+                <article v-for="item in shareList" :key="item.id" class="share-card">
+                  <img :src="item.imgPath"  class="share-cover" />
+                  <h2>{{ item.dishName }}</h2>
+                  <div class="share-meta">
+                    <span class="author">{{ item.userName }}</span>
+                    <span class="likes">
+                      <HeartN size="17" color="#a9a9ad" />
+                      <span>{{ item.startCount }}</span>
+                    </span>
+                  </div>
+                </article>
+              </section>
+            </template>
+
+            <div v-else class="empty-state">
+              <p>没有找到相关菜品分享</p>
+              <span>换个菜名再试试吧</span>
+            </div>
+          </div>
+        </nut-pull-refresh>
+      </nut-infinite-loading>
     </section>
-
-    <div v-else class="empty-state">
-      <p>没有找到相关菜品分享</p>
-      <span>换个菜名再试试吧</span>
-    </div>
-
-    <footer v-if="!isEmpty" class="list-footer">
-      <span v-if="isLoadingMore">加载中...</span>
-      <span v-else-if="hasMore">下拉继续加载</span>
-      <span v-else>已经到底啦</span>
-    </footer>
   </section>
 </template>
 
 <style scoped>
 .share-list-page {
-  min-height: 100vh;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  --top-panel-height: calc(env(safe-area-inset-top) + 102px);
+  height: 100vh;
   background: #ffffff;
 }
 
@@ -239,11 +248,23 @@ onBeforeUnmount(() => {
   border-radius: 13px;
 }
 
+.list-panel {
+  height: 100vh;
+  overflow-y: auto;
+  padding-top: var(--top-panel-height);
+  margin-top: 20px;
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+.list-content {
+  min-height: calc(60vh - var(--top-panel-height));
+}
+
 .share-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px 14px;
-  padding: calc(env(safe-area-inset-top) + 96px) 22px 0;
+  padding: 8px 22px 0;
 }
 
 .share-card {
@@ -293,15 +314,16 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
+.state-box,
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: calc(52vh + 96px);
-  padding-top: calc(env(safe-area-inset-top) + 96px);
+  min-height: calc(52vh + 32px);
   color: #9ca3af;
   font-size: 15px;
+  text-align: center;
 }
 
 .empty-state span {

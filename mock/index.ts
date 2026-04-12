@@ -2,6 +2,7 @@ import Mock from 'mockjs'
 import { setupDishMock } from './dish'
 import { setupHomeMock } from './home'
 import { setupLoginMock } from './login'
+import { setupShareMock } from './share'
 import { setupSystemMock } from './system'
 import { setupUserMock } from './user'
 
@@ -18,6 +19,7 @@ export function setupMock() {
 
   setupLoginMock()
   setupUserMock()
+  setupShareMock()
   setupSystemMock()
   setupDishMock()
   setupHomeMock()

@@ -17,6 +17,8 @@ declare module 'vue' {
     IconMdiRobotExcitedOutline: typeof import('~icons/mdi/robot-excited-outline')['default']
     IconMdiShieldKeyOutline: typeof import('~icons/mdi/shield-key-outline')['default']
     NutCalendarCard: typeof import('@nutui/nutui')['CalendarCard']
+    NutInfiniteLoading: typeof import('@nutui/nutui')['InfiniteLoading']
+    NutPullRefresh: typeof import('@nutui/nutui')['PullRefresh']
     NutSearchbar: typeof import('@nutui/nutui')['Searchbar']
     NutTabbar: typeof import('@nutui/nutui')['Tabbar']
     NutTabbarItem: typeof import('@nutui/nutui')['TabbarItem']

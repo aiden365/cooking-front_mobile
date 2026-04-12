@@ -1,19 +1,54 @@
+
 <script setup lang="ts">
-defineOptions({
-  // name 作为一种规范最好必须写上并且和路由的name保持一致
-  name: "Test1"
-});
-
-
 import { ref } from 'vue'
-const value = ref(new Date('2023-01-01'))
-const onChange = (val: Date) => {
-  console.log(val)
+const cycle = ref(0)
+const tabsValue = ref(0)
+const sum = ref(24)
+const infinityValue = ref(false)
+const hasMore = ref(true)
+const loadMore = () => {
+  setTimeout(() => {
+    sum.value = sum.value + 24
+    cycle.value++
+    if (cycle.value > 2) hasMore.value = false
+    infinityValue.value = false
+  }, 1000)
 }
-
+const refresh = ref(false)
+const refreshFun = () => {
+  setTimeout(() => {
+    refresh.value = false
+    sum.value = 24
+  }, 3000)
+}
 </script>
 
+
 <template>
-  <h1>测试页面1</h1> 
-   <nut-calendar-card v-model="value" @change="onChange"></nut-calendar-card>
+  <section class="test-page">
+    <nut-infinite-loading :loading="infinityValue" :has-more="hasMore" @load-more="loadMore">
+      <nut-pull-refresh :model-value="refresh" @refresh="refreshFun">
+        <div class="test-list">
+          <div class="test" v-for="(item, index) in sum" :key="index">{{ index }}</div>
+        </div>
+      </nut-pull-refresh>
+    </nut-infinite-loading>
+  </section>
 </template>
+
+<style>
+.test-page {
+  min-height: 100vh;
+  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  background: #ffffff;
+}
+
+.test-list {
+  min-height: calc(100vh - 84px);
+}
+
+.test {
+  padding: 12px 0 12px 20px;
+  border-top: 1px solid #eee;
+}
+</style>
