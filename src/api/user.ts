@@ -119,21 +119,21 @@ export function getUserShareList(data:SharePageReq  ) {
 
 export function getSystemNutritionList() {
   return request<SystemNutritionItem[]>({
-    url: '/system/nutrition',
-    method: 'get',
+    url: 'nutrition/list',
+    method: 'post',
   })
 }
 
 export function getUserNutritionList() {
   return request<UserNutritionItem[]>({
-    url: '/user/nutrition',
-    method: 'get',
+    url: 'userNutrition/list',
+    method: 'post',
   })
 }
 
 export function saveUserNutritionItem(data: UserNutritionPayload) {
   return request<UserNutritionItem>({
-    url: '/user/nutrition',
+    url: 'userNutrition/save',
     method: 'post',
     data,
   })
@@ -141,8 +141,9 @@ export function saveUserNutritionItem(data: UserNutritionPayload) {
 
 export function deleteUserNutritionItem(id: number) {
   return request<null>({
-    url: `/user/nutrition/${id}`,
-    method: 'delete',
+    url: `/userNutrition/delete`,
+    method: 'post',
+    data: { id },
   })
 }
 

@@ -92,11 +92,6 @@ async function handleSave(row: NutritionRow) {
       nutritionName: row.nutritionName,
       aimValue: row.aimValue.trim(),
     })
-
-    row.id = response.data.id
-    row.nutritionId = response.data.nutritionId
-    row.nutritionName = response.data.nutritionName
-    row.aimValue = response.data.aimValue
     showToast.success('保存成功')
   } catch (error) {
     showToast.fail(error instanceof Error ? error.message : '保存失败，请稍后再试')
@@ -214,7 +209,7 @@ onMounted(() => {
           <span class="add-icon">
             <MdiPlus />
           </span>
-          <span>添加营养</span>
+          <span>添加营养目标</span>
         </button>
       </template>
     </section>
