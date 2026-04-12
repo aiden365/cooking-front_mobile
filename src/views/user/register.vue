@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { showToast } from '@nutui/nutui'
+import { onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { register } from '../../api/auth'
+import { register, sendEmailCode } from '../../api/auth'
 import backgroundImage from '../../assets/img/background1.png'
 
 defineOptions({
@@ -14,7 +15,68 @@ const password = ref('')
 const email = ref('')
 const emailCode = ref('')
 const loading = ref(false)
+const sendingCode = ref(false)
+const countdown = ref(0)
 const message = ref('')
+let countdownTimer: number | undefined
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function startCountdown() {
+  countdown.value = 60
+
+  countdownTimer = window.setInterval(() => {
+    if (countdown.value <= 1) {
+      countdown.value = 0
+
+      if (countdownTimer) {
+        window.clearInterval(countdownTimer)
+        countdownTimer = undefined
+      }
+
+      return
+    }
+
+    countdown.value -= 1
+  }, 1000)
+}
+
+async function handleSendEmailCode() {
+  if (!email.value) {
+    message.value = '请先输入邮箱'
+    showToast.text('请先输入邮箱')
+    return
+  }
+
+  if (!isValidEmail(email.value)) {
+    message.value = '请输入正确的邮箱地址'
+    showToast.text('请输入正确的邮箱地址')
+    return
+  }
+
+  if (sendingCode.value || countdown.value > 0) {
+    return
+  }
+
+  sendingCode.value = true
+  message.value = ''
+
+  try {
+    await sendEmailCode({
+      email: email.value.trim(),
+    })
+
+    message.value = '验证码已发送，请注意查收邮箱'
+    showToast.success('验证码已发送')
+    startCountdown()
+  } catch (error) {
+    message.value = error instanceof Error ? error.message : '验证码发送失败，请稍后再试'
+  } finally {
+    sendingCode.value = false
+  }
+}
 
 async function handleRegister() {
   if (!username.value || !password.value || !email.value || !emailCode.value) {
@@ -22,22 +84,45 @@ async function handleRegister() {
     return
   }
 
+  if (!isValidEmail(email.value)) {
+    message.value = '请输入正确的邮箱地址'
+    return
+  }
+
   loading.value = true
   message.value = ''
 
   try {
-    await register({
-      username: username.value,
+    const response = await register({
+      username: username.value.trim(),
       password: password.value,
+      email: email.value.trim(),
+      emailCode: emailCode.value.trim(),
     })
 
-    message.value = '注册成功，请返回登录'
+    localStorage.setItem('token', response.data.accessToken)
+    localStorage.setItem(
+      'userInfo',
+      JSON.stringify({
+        id: response.data.id,
+        userName: response.data.userName,
+        expires: response.data.expires,
+      }),
+    )
+    message.value = `注册成功，欢迎你，${response.data.userName}`
+    router.push('/user/home')
   } catch (error) {
     message.value = error instanceof Error ? error.message : '注册失败，请稍后再试'
   } finally {
     loading.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  if (countdownTimer) {
+    window.clearInterval(countdownTimer)
+  }
+})
 </script>
 
 <template>
@@ -64,7 +149,7 @@ async function handleRegister() {
       <section class="auth-panel">
         <label class="field">
           <span class="field-icon"><icon-mdi-account-outline /></span>
-          <input v-model="username" type="text" placeholder="设置用户名" />
+          <input v-model="username" type="text" placeholder="用户姓名" />
         </label>
 
         <label class="field">
@@ -77,9 +162,17 @@ async function handleRegister() {
           <input v-model="email" type="email" placeholder="输入邮箱" />
         </label>
 
-        <label class="field">
+        <label class="field field-code">
           <span class="field-icon"><icon-mdi-shield-key-outline /></span>
           <input v-model="emailCode" type="text" placeholder="输入邮箱验证码" />
+          <button
+            class="code-button"
+            type="button"
+            :disabled="sendingCode || countdown > 0"
+            @click="handleSendEmailCode"
+          >
+            {{ sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s后重发` : '发送验证码' }}
+          </button>
         </label>
 
         <button class="auth-button" type="button" :disabled="loading" @click="handleRegister">
@@ -191,6 +284,28 @@ async function handleRegister() {
   background: transparent;
   border: none;
   outline: none;
+}
+
+.field-code {
+  gap: 10px;
+}
+
+.code-button {
+  flex-shrink: 0;
+  min-width: 92px;
+  height: 34px;
+  padding: 0 10px;
+  color: rgb(255, 143, 132);
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 143, 132, 0.12);
+  border: none;
+  border-radius: 12px;
+}
+
+.code-button:disabled {
+  color: #b79f99;
+  background: rgba(183, 159, 153, 0.16);
 }
 
 .auth-button {

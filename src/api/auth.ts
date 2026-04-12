@@ -8,6 +8,8 @@ export interface LoginParams {
 export interface RegisterParams {
   username: string
   password: string
+  email: string
+  emailCode: string
 }
 
 export interface LoginResult {
@@ -26,8 +28,16 @@ export function login(data: LoginParams) {
 }
 
 export function register(data: RegisterParams) {
-  return request<{ userId: number }>({
-    url: '/auth/register',
+  return request<LoginResult>({
+    url: '/user/register',
+    method: 'post',
+    data,
+  })
+}
+
+export function sendEmailCode(data: { email: string }) {
+  return request<null>({
+    url: '/user/sendEmailCode',
     method: 'post',
     data,
   })
