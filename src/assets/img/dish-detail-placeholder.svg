@@ -1,0 +1,27 @@
+<svg width="720" height="480" viewBox="0 0 720 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="84" y1="52" x2="622" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF4F1"/>
+      <stop offset="1" stop-color="#FFD7D1"/>
+    </linearGradient>
+    <linearGradient id="plate" x1="360" y1="138" x2="360" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8B7D"/>
+      <stop offset="1" stop-color="#FF6F61"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="480" rx="32" fill="url(#bg)"/>
+  <circle cx="136" cy="92" r="28" fill="#FFE4DF"/>
+  <circle cx="604" cy="108" r="18" fill="#FFD1C9"/>
+  <circle cx="570" cy="380" r="24" fill="#FFE7E2"/>
+  <ellipse cx="360" cy="318" rx="192" ry="44" fill="#F5B4AA" fill-opacity="0.35"/>
+  <ellipse cx="360" cy="262" rx="168" ry="104" fill="white"/>
+  <ellipse cx="360" cy="252" rx="148" ry="90" fill="url(#plate)"/>
+  <circle cx="306" cy="240" r="24" fill="#FFD8A8"/>
+  <circle cx="360" cy="222" r="28" fill="#FFE3B8"/>
+  <circle cx="420" cy="246" r="26" fill="#FFD2B1"/>
+  <path d="M274 280C294.667 260.667 323.6 251.4 360.8 252.2C392.8 252.867 420.533 262.133 444 280" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <path d="M248 164C282.667 145.333 320.667 136 362 136C403.333 136 441.333 145.333 476 164" stroke="#FFB0A5" stroke-width="12" stroke-linecap="round"/>
+  <path d="M300 152C300 152 316 116 346 110" stroke="#FF8B7D" stroke-width="8" stroke-linecap="round"/>
+  <path d="M420 152C420 152 404 116 374 110" stroke="#FF8B7D" stroke-width="8" stroke-linecap="round"/>
+  <text x="360" y="408" text-anchor="middle" fill="#FF6F61" font-size="28" font-family="Arial, sans-serif" font-weight="700">暂无图片</text>
+</svg>

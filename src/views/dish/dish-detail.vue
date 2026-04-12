@@ -134,7 +134,7 @@ function getCurrentUserId() {
 
 function resolveMediaPath(path?: string) {
   if (!path) {
-    return 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80'
+    return ''
   }
 
   if (/^https?:\/\//.test(path)) {
@@ -151,11 +151,15 @@ function resolveMediaPath(path?: string) {
 function mapStepList(stepList: DishStepItem[]) {
   return [...stepList]
     .sort((a, b) => a.sort - b.sort)
-    .map<DetailStepView>((item) => ({
-      id: item.id,
-      description: item.stepDescribe,
-      images: item.stepImage ? [resolveMediaPath(item.stepImage)] : [],
-    }))
+    .map<DetailStepView>((item) => {
+      const image = resolveMediaPath(item.stepImage)
+
+      return {
+        id: item.id,
+        description: item.stepDescribe,
+        images: image ? [image] : [],
+      }
+    })
 }
 
 function mapReplyItem(item: DishCommentItem): DetailCommentReplyView {
@@ -219,7 +223,7 @@ async function loadDishData() {
       viewCount: detailResponse.data.viewCount,
       collectCount: detailResponse.data.collectCount,
       isFavorite: detailResponse.data.userCollected,
-      cover: stepList[0]?.images[0] ?? resolveMediaPath(),
+      cover: stepList[0]?.images[0] ?? '',
     }
 
     materials.value = materialResponse.data
@@ -476,12 +480,12 @@ onBeforeUnmount(() => {
     <div v-if="loading" class="page-state">菜谱详情加载中...</div>
     <div v-else-if="errorMessage" class="page-state">{{ errorMessage }}</div>
     <template v-else-if="detail">
-      <header class="detail-hero">
-        <img :src="detail.cover" :alt="detail.title" class="hero-image" />
+      <header class="detail-hero" :class="{ 'detail-hero-compact': !detail.cover }">
+        <img v-if="detail.cover" :src="detail.cover" :alt="detail.title" class="hero-image" />
         <button class="back-button" type="button" @click="goBack">
           <Left color="#ffffff" size="18" />
         </button>
-        <div class="gallery-count">
+        <div v-if="detail.cover" class="gallery-count">
           <Message size="14" color="#ffffff" />
           <span>{{ heroCount }}</span>
         </div>
@@ -543,7 +547,7 @@ onBeforeUnmount(() => {
             {{ step.description }}
           </p>
           <div v-if="step.images.length" class="step-gallery">
-            <img v-for="image in step.images" :key="image" :src="image" :alt="step.description" />
+            <img v-for="image in step.images" :key="image" :src="image" />
           </div>
         </article>
 
@@ -730,6 +734,11 @@ onBeforeUnmount(() => {
   background: #ddd;
 }
 
+.detail-hero-compact {
+  height: calc(env(safe-area-inset-top) + 0px);
+  background: linear-gradient(180deg, #fff7f5 0%, #fff 100%);
+}
+
 .hero-image {
   width: 100%;
   height: 100%;
@@ -749,6 +758,10 @@ onBeforeUnmount(() => {
   border: none;
   border-radius: 999px;
   backdrop-filter: blur(6px);
+}
+
+.detail-hero-compact .back-button {
+  background: rgba(255, 111, 97, 0.12);
 }
 
 .gallery-count {
