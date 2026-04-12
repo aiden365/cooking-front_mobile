@@ -53,8 +53,6 @@ function goBack() {
 }
 
 async function handleSave() {
-  showToast.success('请输入邮箱')
-
   if (!form.userName.trim()) {
     showToast.text('请输入名称')
     return
@@ -72,7 +70,7 @@ async function handleSave() {
       ...form,
       userName: form.userName.trim(),
       email: form.email.trim(),
-      stature: form.stature.trim(),
+      stature: form.stature,
       weight: form.weight,
     })
     showToast.success('保存成功')
