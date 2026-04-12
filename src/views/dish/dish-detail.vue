@@ -9,22 +9,77 @@ import {
   StarN,
   TriangleDown,
 } from '@nutui/icons-vue'
+import { showToast } from '@nutui/nutui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDishDetail, type DishCommentReply, type DishDetail } from '../../api/dish'
+import {
+  addDishCollect,
+  addDishComment,
+  deleteDishCollect,
+  deleteDishComment,
+  getDishCommentList,
+  getDishDetail,
+  getDishFlavorList,
+  getDishMaterialList,
+  getDishStepList,
+  starDishComment,
+  type DishCommentItem,
+  type DishFlavorItem,
+  type DishMaterialItem,
+  type DishStepItem,
+} from '../../api/dish'
 import { getSystemLabels, getUserLabels, type SystemLabel } from '../../api/label'
 
 defineOptions({
   name: 'DishDetail',
 })
 
+type DetailStepView = {
+  id: number
+  description: string
+  images: string[]
+}
+
+type DetailCommentReplyView = {
+  id: number
+  parentId: number
+  userId: number
+  nickname: string
+  content: string
+  time: string
+  likes: number
+}
+
+type DetailCommentView = DetailCommentReplyView & {
+  replies: DetailCommentReplyView[]
+}
+
+type DetailViewModel = {
+  id: number
+  title: string
+  takeTimes: string
+  viewCount: number
+  collectCount: number
+  isFavorite: boolean
+  cover: string
+}
+
 const router = useRouter()
 const route = useRoute()
-const detail = ref<DishDetail | null>(null)
+
+const detail = ref<DetailViewModel | null>(null)
+const materials = ref<DishMaterialItem[]>([])
+const flavors = ref<DishFlavorItem[]>([])
+const steps = ref<DetailStepView[]>([])
+const comments = ref<DetailCommentView[]>([])
 const loading = ref(false)
+const commentLoading = ref(false)
+const favoriteLoading = ref(false)
+const submittingComment = ref(false)
 const errorMessage = ref('')
 const showAllSteps = ref(false)
 const showAIPanel = ref(false)
+const showCommentPopup = ref(false)
 const aiButtonTop = ref(360)
 const isDragging = ref(false)
 const movedDuringDrag = ref(false)
@@ -33,26 +88,145 @@ const selectedLabelIds = ref<number[]>([])
 const aiLoading = ref(false)
 const aiLoaded = ref(false)
 const aiErrorMessage = ref('')
+const commentDraft = ref('')
+const replyParentId = ref(0)
+const replyTargetName = ref('')
 
 let pointerStartY = 0
 let buttonStartTop = 0
-const currentUserId = 10001
+
+const currentUserId = getCurrentUserId()
 
 const visibleSteps = computed(() => {
-  if (!detail.value) {
-    return []
-  }
-
-  return showAllSteps.value ? detail.value.steps : detail.value.steps.slice(0, 3)
+  return showAllSteps.value ? steps.value : steps.value.slice(0, 3)
 })
 
-async function loadDishDetail() {
+const commentCount = computed(() =>
+  comments.value.reduce((total, item) => total + 1 + item.replies.length, 0),
+)
+
+const heroCount = computed(() => steps.value.length)
+
+function getDishId() {
+  return Number(route.params.id || 0)
+}
+
+function getCurrentUserId() {
+  const directUserId = Number(localStorage.getItem('userId') || '')
+
+  if (!Number.isNaN(directUserId) && directUserId > 0) {
+    return directUserId
+  }
+
+  const rawUserInfo = localStorage.getItem('userInfo')
+
+  if (!rawUserInfo) {
+    return 0
+  }
+
+  try {
+    const parsed = JSON.parse(rawUserInfo) as { id?: number; userId?: number }
+    return Number(parsed.userId || parsed.id || 0)
+  } catch {
+    return 0
+  }
+}
+
+function resolveMediaPath(path?: string) {
+  if (!path) {
+    return 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80'
+  }
+
+  if (/^https?:\/\//.test(path)) {
+    return path
+  }
+
+  if (path.startsWith('/')) {
+    return `http://192.168.50.100:8083${path}`
+  }
+
+  return path
+}
+
+function mapStepList(stepList: DishStepItem[]) {
+  return [...stepList]
+    .sort((a, b) => a.sort - b.sort)
+    .map<DetailStepView>((item) => ({
+      id: item.id,
+      description: item.stepDescribe,
+      images: item.stepImage ? [resolveMediaPath(item.stepImage)] : [],
+    }))
+}
+
+function mapReplyItem(item: DishCommentItem): DetailCommentReplyView {
+  return {
+    id: item.id,
+    parentId: item.parentId,
+    userId: item.userId,
+    nickname: item.userName,
+    content: item.content,
+    time: item.createTime,
+    likes: item.startCount,
+  }
+}
+
+async function loadCommentList(dishId: number) {
+  commentLoading.value = true
+
+  try {
+    const parentResponse = await getDishCommentList(dishId, 0)
+    const parentComments = parentResponse.data
+    const replyResponses = await Promise.all(
+      parentComments.map((comment) => getDishCommentList(dishId, comment.id)),
+    )
+
+    comments.value = parentComments.map<DetailCommentView>((comment, index) => ({
+      ...mapReplyItem(comment),
+      replies: replyResponses[index].data.map(mapReplyItem),
+    }))
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '评论加载失败')
+  } finally {
+    commentLoading.value = false
+  }
+}
+
+async function loadDishData() {
+  const dishId = getDishId()
+
+  if (!dishId) {
+    errorMessage.value = '菜谱信息不存在'
+    return
+  }
+
   loading.value = true
   errorMessage.value = ''
 
   try {
-    const response = await getDishDetail(String(route.params.id || 1))
-    detail.value = response.data
+    const [detailResponse, materialResponse, flavorResponse, stepResponse] = await Promise.all([
+      getDishDetail(dishId),
+      getDishMaterialList(dishId),
+      getDishFlavorList(dishId),
+      getDishStepList(dishId),
+    ])
+
+    const stepList = mapStepList(stepResponse.data)
+
+    detail.value = {
+      id: detailResponse.data.id,
+      title: detailResponse.data.name,
+      takeTimes: detailResponse.data.takeTimes,
+      viewCount: detailResponse.data.viewCount,
+      collectCount: detailResponse.data.collectCount,
+      isFavorite: detailResponse.data.userCollected,
+      cover: stepList[0]?.images[0] ?? resolveMediaPath(),
+    }
+
+    materials.value = materialResponse.data
+    flavors.value = flavorResponse.data
+    steps.value = stepList
+
+    await loadCommentList(dishId)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '菜谱详情加载失败'
   } finally {
@@ -73,16 +247,119 @@ function getAvatarText(name: string) {
   return name.slice(0, 1).toUpperCase()
 }
 
-function toggleFavorite() {
-  if (!detail.value) {
+async function toggleFavorite() {
+  if (!detail.value || favoriteLoading.value) {
     return
   }
 
-  detail.value.isFavorite = !detail.value.isFavorite
+  favoriteLoading.value = true
+
+  try {
+    if (detail.value.isFavorite) {
+      await deleteDishCollect(detail.value.id)
+      detail.value.isFavorite = false
+      detail.value.collectCount = Math.max(0, detail.value.collectCount - 1)
+      showToast.success('已取消收藏')
+    } else {
+      await addDishCollect(detail.value.id)
+      detail.value.isFavorite = true
+      detail.value.collectCount += 1
+      showToast.success('收藏成功')
+    }
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '收藏操作失败')
+  } finally {
+    favoriteLoading.value = false
+  }
 }
 
-function renderReplyPrefix(reply: DishCommentReply) {
-  return `${reply.nickname}`
+function renderReplyPrefix(reply: DetailCommentReplyView) {
+  return reply.nickname
+}
+
+function canDeleteComment(userId: number) {
+  return currentUserId > 0 && currentUserId === userId
+}
+
+async function handleStarComment(commentId: number) {
+  try {
+    await starDishComment(commentId)
+    comments.value = comments.value.map((comment) => {
+      if (comment.id === commentId) {
+        return { ...comment, likes: comment.likes + 1 }
+      }
+
+      return {
+        ...comment,
+        replies: comment.replies.map((reply) =>
+          reply.id === commentId ? { ...reply, likes: reply.likes + 1 } : reply,
+        ),
+      }
+    })
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '点赞失败')
+  }
+}
+
+async function handleDeleteComment(commentId: number) {
+  const confirmed = window.confirm('确认删除这条评论吗？')
+
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    await deleteDishComment(commentId)
+    showToast.success('删除成功')
+    await loadCommentList(getDishId())
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '删除失败')
+  }
+}
+
+function openCommentPopup(parentId = 0, targetName = '') {
+  replyParentId.value = parentId
+  replyTargetName.value = targetName
+  commentDraft.value = ''
+  showCommentPopup.value = true
+}
+
+function closeCommentPopup() {
+  showCommentPopup.value = false
+  commentDraft.value = ''
+  replyParentId.value = 0
+  replyTargetName.value = ''
+}
+
+async function submitComment() {
+  const content = commentDraft.value.trim()
+  const dishId = getDishId()
+
+  if (!content) {
+    showToast.text('请输入评论内容')
+    return
+  }
+
+  if (!dishId) {
+    return
+  }
+
+  submittingComment.value = true
+
+  try {
+    await addDishComment({
+      dishId,
+      parentId: replyParentId.value,
+      content,
+    })
+    showToast.success('评论成功')
+    closeCommentPopup()
+    await loadCommentList(dishId)
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '评论失败')
+  } finally {
+    submittingComment.value = false
+  }
 }
 
 function clampButtonTop(nextTop: number) {
@@ -109,7 +386,6 @@ function handlePointerMove(event: PointerEvent) {
 
 function stopDrag() {
   isDragging.value = false
-
   window.removeEventListener('pointermove', handlePointerMove)
   window.removeEventListener('pointerup', stopDrag)
 }
@@ -187,7 +463,7 @@ function handleGeneratePlan() {
 
 onMounted(() => {
   aiButtonTop.value = clampButtonTop(window.innerHeight * 0.52)
-  loadDishDetail()
+  void loadDishData()
 })
 
 onBeforeUnmount(() => {
@@ -207,7 +483,7 @@ onBeforeUnmount(() => {
         </button>
         <div class="gallery-count">
           <Message size="14" color="#ffffff" />
-          <span>{{ detail.galleryCount }}</span>
+          <span>{{ heroCount }}</span>
         </div>
       </header>
 
@@ -215,13 +491,18 @@ onBeforeUnmount(() => {
         <div class="intro-main">
           <h1 class="dish-title">{{ detail.title }}</h1>
           <p class="dish-stats">
-            浏览{{ detail.browseCount }} · 收藏{{ detail.favoriteCount }} · {{ detail.cookedCount }}
+            用时{{ detail.takeTimes }} · 浏览{{ detail.viewCount }} · 收藏{{ detail.collectCount }}
           </p>
         </div>
-        <button class="favorite-button" type="button" @click="toggleFavorite">
+        <button
+          class="favorite-button"
+          type="button"
+          :disabled="favoriteLoading"
+          @click="toggleFavorite"
+        >
           <component
             :is="detail.isFavorite ? HeartFill : HeartN"
-            :color="detail.isFavorite ? 'rgb(255,111,97)' : 'rgb(255,111,97)'"
+            :color="'rgb(255,111,97)'"
             size="18"
           />
           <span>{{ detail.isFavorite ? '已收藏' : '收藏' }}</span>
@@ -231,9 +512,12 @@ onBeforeUnmount(() => {
       <section class="detail-section">
         <h2 class="section-title">主料清单</h2>
         <div class="list-block">
-          <div v-for="item in detail.ingredients" :key="item.name" class="list-row">
-            <span>{{ item.name }}</span>
-            <strong>{{ item.amount }}</strong>
+          <div v-for="item in materials" :key="item.id" class="list-row list-row-start">
+            <div>
+              <span>{{ item.materialName }}</span>
+              <p v-if="item.deal" class="list-deal">{{ item.deal }}</p>
+            </div>
+            <strong>{{ item.dosage }}</strong>
           </div>
         </div>
       </section>
@@ -241,9 +525,9 @@ onBeforeUnmount(() => {
       <section class="detail-section">
         <h2 class="section-title">调料清单</h2>
         <div class="list-block">
-          <div v-for="item in detail.seasonings" :key="item.name" class="list-row">
-            <span>{{ item.name }}</span>
-            <strong>{{ item.amount }}</strong>
+          <div v-for="item in flavors" :key="item.id" class="list-row">
+            <span>{{ item.flavorName }}</span>
+            <strong>{{ item.dosage }}</strong>
           </div>
         </div>
       </section>
@@ -255,15 +539,20 @@ onBeforeUnmount(() => {
 
         <article v-for="(step, index) in visibleSteps" :key="step.id" class="step-card">
           <p class="step-text">
-            <strong>步骤{{ index + 1 }}/{{ detail.steps.length }}</strong>
+            <strong>步骤{{ index + 1 }}/{{ steps.length }}</strong>
             {{ step.description }}
           </p>
-          <div class="step-gallery" :class="{ 'step-gallery-double': step.images.length > 1 }">
+          <div v-if="step.images.length" class="step-gallery">
             <img v-for="image in step.images" :key="image" :src="image" :alt="step.description" />
           </div>
         </article>
 
-        <button class="expand-button" type="button" @click="showAllSteps = !showAllSteps">
+        <button
+          v-if="steps.length > 3"
+          class="expand-button"
+          type="button"
+          @click="showAllSteps = !showAllSteps"
+        >
           <span>{{ showAllSteps ? '收起步骤' : '查看全部' }}</span>
           <TriangleDown
             size="10"
@@ -274,21 +563,35 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="detail-section comments-section">
-        <h2 class="section-title">菜谱评论({{ detail.commentCount }})</h2>
+        <h2 class="section-title">菜谱评论({{ commentCount }})</h2>
+        <div v-if="commentLoading" class="comment-state">评论加载中...</div>
+        <div v-else-if="!comments.length" class="comment-state">还没有评论，来抢个沙发吧</div>
 
-        <article v-for="comment in detail.comments" :key="comment.id" class="comment-card">
+        <article v-for="comment in comments" :key="comment.id" class="comment-card">
           <div class="comment-avatar">{{ getAvatarText(comment.nickname) }}</div>
           <div class="comment-body">
             <div class="comment-top">
               <div>
                 <p class="comment-name">{{ comment.nickname }}</p>
                 <p class="comment-content">{{ comment.content }}</p>
-                <p class="comment-meta">{{ comment.time }}&nbsp;&nbsp;回复</p>
+                <p class="comment-meta">
+                  {{ comment.time }}
+                  <span class="comment-link" @click="openCommentPopup(comment.id, comment.nickname)">
+                    回复
+                  </span>
+                  <span
+                    v-if="canDeleteComment(comment.userId)"
+                    class="comment-link"
+                    @click="handleDeleteComment(comment.id)"
+                  >
+                    删除
+                  </span>
+                </p>
               </div>
-              <div class="comment-like">
+              <button class="comment-like" type="button" @click="handleStarComment(comment.id)">
                 <HeartN size="14" color="#9ca3af" />
                 <span>{{ comment.likes }}</span>
-              </div>
+              </button>
             </div>
 
             <div v-if="comment.replies.length" class="reply-list">
@@ -297,14 +600,24 @@ onBeforeUnmount(() => {
                 <div class="reply-content">
                   <p class="comment-name">{{ renderReplyPrefix(reply) }}</p>
                   <p class="comment-content">{{ reply.content }}</p>
-                  <div class="reply-bottom">
-                    <p class="comment-meta">{{ reply.time }}&nbsp;&nbsp;回复</p>
-                    <div class="comment-like">
-                      <HeartN size="14" color="#9ca3af" />
-                      <span>{{ reply.likes || '' }}</span>
-                    </div>
-                  </div>
+                  <p class="comment-meta">
+                    {{ reply.time }}
+                    <span class="comment-link" @click="openCommentPopup(comment.id, reply.nickname)">
+                      回复
+                    </span>
+                    <span
+                      v-if="canDeleteComment(reply.userId)"
+                      class="comment-link"
+                      @click="handleDeleteComment(reply.id)"
+                    >
+                      删除
+                    </span>
+                  </p>
                 </div>
+                <button class="comment-like" type="button" @click="handleStarComment(reply.id)">
+                  <HeartN size="14" color="#9ca3af" />
+                  <span>{{ reply.likes }}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -327,7 +640,9 @@ onBeforeUnmount(() => {
     </template>
 
     <footer v-if="detail" class="detail-actionbar">
-      <div class="comment-input">说点什么...</div>
+      <button class="comment-input" type="button" @click="openCommentPopup()">
+        说点什么...
+      </button>
       <button type="button" class="action-item">
         <StarN size="18" color="#8b8b8b" />
         <span>评分</span>
@@ -341,6 +656,31 @@ onBeforeUnmount(() => {
         <span>分享</span>
       </button>
     </footer>
+
+    <div v-if="showCommentPopup" class="comment-popup-mask" @click="closeCommentPopup" />
+    <section v-if="showCommentPopup" class="comment-popup">
+      <div class="comment-popup-handle" />
+      <h3 class="comment-popup-title">
+        {{ replyParentId ? `回复 ${replyTargetName || '评论'}` : '发布评论' }}
+      </h3>
+      <textarea
+        v-model="commentDraft"
+        class="comment-textarea"
+        maxlength="200"
+        :placeholder="replyParentId ? '请输入回复内容' : '请输入评论内容'"
+      />
+      <div class="comment-popup-footer">
+        <button class="comment-popup-cancel" type="button" @click="closeCommentPopup">取消</button>
+        <button
+          class="comment-popup-submit"
+          type="button"
+          :disabled="submittingComment"
+          @click="submitComment"
+        >
+          {{ submittingComment ? '提交中...' : '提交' }}
+        </button>
+      </div>
+    </section>
 
     <div v-if="showAIPanel" class="ai-popup-mask" @click="showAIPanel = false" />
     <section v-if="showAIPanel" class="ai-popup">
@@ -469,6 +809,10 @@ onBeforeUnmount(() => {
   border-radius: 999px;
 }
 
+.favorite-button:disabled {
+  opacity: 0.6;
+}
+
 .section-head {
   display: flex;
   align-items: center;
@@ -483,18 +827,6 @@ onBeforeUnmount(() => {
   font-weight: 800;
 }
 
-.section-head .section-title {
-  margin-bottom: 0;
-}
-
-.cook-mode {
-  color: rgb(255, 111, 97);
-  font-size: 14px;
-  font-weight: 700;
-  background: transparent;
-  border: none;
-}
-
 .list-block {
   border-top: 1px solid #f1f1f1;
 }
@@ -503,15 +835,27 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 15px 0;
   color: #444;
   font-size: 15px;
   border-bottom: 1px solid #f1f1f1;
 }
 
+.list-row-start {
+  align-items: flex-start;
+}
+
 .list-row strong {
   color: #2b2b2b;
   font-weight: 700;
+}
+
+.list-deal {
+  margin: 6px 0 0;
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .step-card + .step-card {
@@ -542,14 +886,6 @@ onBeforeUnmount(() => {
   border-radius: 12px;
 }
 
-.step-gallery-double {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.step-gallery-double img {
-  height: 172px;
-}
-
 .expand-button {
   display: inline-flex;
   align-items: center;
@@ -567,59 +903,11 @@ onBeforeUnmount(() => {
   margin-bottom: 6px;
 }
 
-.ai-float-button {
-  position: fixed;
-  right: 10px;
-  z-index: 34;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  width: 66px;
-  height: 74px;
-  padding: 0;
-  color: #ffffff;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03)),
-    linear-gradient(160deg, #FF7E71 0%, #FF7E71 52%, #FF7E71 100%);
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  border-radius: 22px;
-  box-shadow:
-    0 10px 30px rgba(45, 124, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
-  touch-action: none;
-}
-
-.ai-float-glow {
-  position: absolute;
-  top: -12px;
-  right: -10px;
-  width: 48px;
-  height: 48px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0, rgba(255, 255, 255, 0) 72%);
-  opacity: 0.9;
-}
-
-.ai-float-icon {
-  position: relative;
-  z-index: 1;
-  display: block;
-  line-height: 1;
-  font-size: 24px;
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.35));
-}
-
-.ai-float-text {
-  position: relative;
-  z-index: 1;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  opacity: 0.96;
+.comment-state {
+  padding: 24px 0 10px;
+  color: #9ca3af;
+  font-size: 14px;
+  text-align: center;
 }
 
 .comment-card {
@@ -678,12 +966,18 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.comment-link {
+  margin-left: 10px;
+}
+
 .comment-like {
   display: flex;
   align-items: center;
   gap: 3px;
   color: #9ca3af;
   font-size: 13px;
+  background: transparent;
+  border: none;
 }
 
 .reply-list {
@@ -711,13 +1005,6 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-.reply-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 .detail-actionbar {
   position: fixed;
   right: 0;
@@ -732,6 +1019,31 @@ onBeforeUnmount(() => {
   border-top: 1px solid #ececec;
 }
 
+.comment-input {
+  flex: 1;
+  height: 38px;
+  padding: 0 14px;
+  color: #b8b8b8;
+  font-size: 14px;
+  text-align: left;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 999px;
+}
+
+.action-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 34px;
+  color: #8b8b8b;
+  font-size: 12px;
+  background: transparent;
+  border: none;
+}
+
+.comment-popup-mask,
 .ai-popup-mask {
   position: fixed;
   inset: 0;
@@ -739,22 +1051,20 @@ onBeforeUnmount(() => {
   background: rgba(17, 24, 39, 0.32);
 }
 
+.comment-popup,
 .ai-popup {
   position: fixed;
   right: 0;
   bottom: 0;
   left: 0;
   z-index: 40;
-  display: flex;
-  flex-direction: column;
-  height: 52vh;
-  min-height: 320px;
   padding: 12px 18px calc(16px + env(safe-area-inset-bottom));
   background: #ffffff;
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12);
 }
 
+.comment-popup-handle,
 .ai-popup-handle {
   width: 42px;
   height: 5px;
@@ -763,12 +1073,63 @@ onBeforeUnmount(() => {
   border-radius: 999px;
 }
 
+.comment-popup-title,
 .ai-popup-title {
   margin: 16px 0 0;
   color: #111827;
   font-size: 18px;
   font-weight: 800;
   text-align: center;
+}
+
+.comment-textarea {
+  width: 100%;
+  min-height: 120px;
+  margin-top: 16px;
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  outline: none;
+  resize: none;
+}
+
+.comment-popup-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.comment-popup-cancel,
+.comment-popup-submit {
+  min-width: 84px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+}
+
+.comment-popup-cancel {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.comment-popup-submit {
+  color: #ffffff;
+  background: linear-gradient(135deg, rgb(255, 111, 97), rgb(255, 140, 110));
+}
+
+.comment-popup-submit:disabled {
+  opacity: 0.6;
+}
+
+.ai-popup {
+  display: flex;
+  flex-direction: column;
+  height: 52vh;
+  min-height: 320px;
 }
 
 .ai-popup-body {
@@ -836,32 +1197,58 @@ onBeforeUnmount(() => {
   border-radius: 14px;
 }
 
-.comment-input {
-  flex: 1;
-  height: 38px;
-  padding: 0 14px;
-  color: #b8b8b8;
-  font-size: 14px;
-  line-height: 38px;
-  background: #f3f4f6;
-  border-radius: 999px;
-}
-
-.action-item {
+.ai-float-button {
+  position: fixed;
+  right: 10px;
+  z-index: 34;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  min-width: 34px;
-  color: #8b8b8b;
-  font-size: 12px;
-  background: transparent;
-  border: none;
+  justify-content: center;
+  gap: 3px;
+  width: 66px;
+  height: 74px;
+  padding: 0;
+  color: #ffffff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03)),
+    linear-gradient(160deg, #ff7e71 0%, #ff7e71 52%, #ff7e71 100%);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 22px;
+  box-shadow:
+    0 10px 30px rgba(45, 124, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  touch-action: none;
 }
 
-html, body, #app {
-  height: 100%;
-  min-height: 100%;
-  overflow: scroll;
+.ai-float-glow {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  width: 48px;
+  height: 48px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0, rgba(255, 255, 255, 0) 72%);
+  opacity: 0.9;
+}
+
+.ai-float-icon {
+  position: relative;
+  z-index: 1;
+  display: block;
+  line-height: 1;
+  font-size: 24px;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.35));
+}
+
+.ai-float-text {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  opacity: 0.96;
 }
 </style>

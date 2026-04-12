@@ -105,7 +105,8 @@ cooking-front_mobile
   - [x] 菜谱详情页面设计与实现 (已完成)
   - [x] AI个性化菜谱生成功能设计与实现 (已完成)
   - [ ] 菜谱评价（评分）列表页面设计与实现
-  - [ ] 菜谱列表页面接口对接 (当前进行)
+  - [x] 菜谱列表页面接口对接 (已完成)
+  - [ ] 菜谱详细页面接口对接 (当前进行)
 - [ ] **阶段 3: 菜品分享模块 ** 
   - [ ] 菜品分享页面设计与实现 
   - [x] 菜品分享列表页面设计与实现 (已完成)
@@ -133,10 +134,121 @@ cooking-front_mobile
 
 ## 6. 当前执行任务 (Current Task)
 > **开发者指令：** 
-> 现在，让我们开始`菜谱列表页面接口对接`吧
-> 1. 请在 `src/views/dish/dish-list.vue` 页面及相关ts文件中完成接口对接工作
-> 2. 该页面总共需要对接两个接口，即页面左侧的系统菜谱标签列表接口和右侧的菜谱分页列表接口
-> 3. 菜谱标签列表接口 已在 'src/api/label.ts' 文件实现 使用 getSystemLabels 方法即可调用 其返回信息如 SystemLabelPage 定义
-> 4. 菜谱分页列表接口 已在 'src/api/dish.ts' 文件实现 使用 getDishPage 方法即可调用，其返回信息如 DishPage 定义
-> 5. 对于 菜谱分页列表，使用 NutUI自带的组件， 参照 index.vue 中的 nut-infinite-loading 用法
-> 6. 
+> 现在，让我们开始`菜谱详细页面接口对接`吧
+> 1. 请在 `src/views/dish/dish-detail.vue` 页面及dish.ts等文件中完成接口对接工作
+> 2. 该页面需要对接多个接口，每个接口的信息如下
+> 3. 菜谱详情接口，接口地址为 post '/dish/detail' 接口参数为 {dishId}
+> 4. 菜谱食材列表接口，接口地址为 post '/dishMaterial/list' 接口参数为 {dishId}
+> 5. 菜谱调料列表接口，接口地址为 post '/dishFlavor/list' 接口参数为 {dishId}
+> 6. 菜谱制作步骤列表接口，接口地址为 post '/dishStep/list' 接口参数为 {dishId}
+> 7. 菜谱评论列表接口，接口地址为 post '/dishComment/list' 接口参数为 {dishId, parentId} 其中 parentId 为上级评论id
+> 8. 添加菜谱评论列表接口，接口地址为 post '/dishComment/add' 接口参数为 {dishId, parentId, content} 其中 parentId 为上级评论id
+> 9. 删除菜谱评论列表接口，接口地址为 post '/dishComment/delete' 接口参数为 {commentId} 其中 commentId 为评论id 只能删除自己发布的评论
+> 10. 点赞菜谱评论接口，接口地址为 post '/dishComment/star' 接口参数为 {commentId} 其中 commentId 为评论id
+> 11. 菜谱收藏接口，接口地址为 post '/collect/add' 接口参数为 {dishId}
+> 12. 菜谱取消收藏，接口地址为 post '/collect/delete' 接口参数为 {dishId}
+> 13. 在实现接口对接工作时，使用TS对象对接口请求和返回的数据进行类型定义
+> 14. 各接口返回的数据结构如下JSON所示
+
+
+```json5
+
+// 菜谱详情接口
+{
+  "msg":"success",
+  "code":0,
+  "data":{
+    "id":1001, // 菜谱id
+    "name": "红烧排骨",
+    "takeTimes": "30分钟", // 预计用时
+    "viewCount": 100,
+    "collectCount": 100,
+    "userCollected": true, // 用户是否收藏了该菜谱
+  }
+
+}
+
+```
+
+
+```json5
+
+// 菜谱食材列表接口
+{
+  "msg":"success",
+  "code":0,
+  "data":[
+    {
+      "id":2001, // 食材id
+      "dishId": 1001, // 菜谱id
+      "materialName": "排骨", // 食材名称
+      "dosage": "1节", // 用量
+      "deal": "清洗干净后切成大约长3厘米的块", // 处理方式
+    }
+  ]
+
+}
+
+```
+
+```json5
+
+// 菜谱调料列表接口
+{
+  "msg":"success",
+  "code":0,
+  "data":[
+    {
+      "id":3001, // 食材id
+      "dishId": 1001, // 菜谱id
+      "flavorName": "盐", // 调料名称
+      "dosage": "适量", // 用量
+    }
+  ]
+
+}
+
+```
+
+```json5
+
+// 菜谱制作步骤列表接口
+{
+  "msg":"success",
+  "code":0,
+  "data":[
+    {
+      "id":3001, // 食材id
+      "dishId": 1001, // 菜谱id
+      "stepDescribe": "排骨冷水下锅，准备焯水，在此过程中撇去浮沫", // 步骤描述
+      "stepImage": "/UploadFile/dish/1001/step/1.png", // 步骤图示
+      "sort": 1, // 步骤序号
+    }
+  ]
+
+}
+
+```
+
+```json5
+
+// 菜谱评论列表接口
+{
+  "msg":"success",
+  "code":0,
+  "data":[
+    {
+      "id":3001, // 食材id
+      "parentId": 0, // 父级评论id
+      "dishId": 1001, // 菜谱id
+      "userId": 1001, // 用户id
+      "userName": "张三", // 用户名称
+      "content": "排骨焯水要多久哇？", // 评论内容
+      "startCount": 5, // 评论点赞数
+      "createTime": '2026-04-13', // 创建时间
+    }
+  ]
+
+}
+
+```

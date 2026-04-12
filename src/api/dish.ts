@@ -49,6 +49,55 @@ export interface DishDetail {
   commentCount: number
 }
 
+export interface DishDetailData {
+  id: number
+  name: string
+  takeTimes: string
+  viewCount: number
+  collectCount: number
+  userCollected: boolean
+}
+
+export interface DishMaterialItem {
+  id: number
+  dishId: number
+  materialName: string
+  dosage: string
+  deal: string
+}
+
+export interface DishFlavorItem {
+  id: number
+  dishId: number
+  flavorName: string
+  dosage: string
+}
+
+export interface DishStepItem {
+  id: number
+  dishId: number
+  stepDescribe: string
+  stepImage: string
+  sort: number
+}
+
+export interface DishCommentItem {
+  id: number
+  parentId: number
+  dishId: number
+  userId: number
+  userName: string
+  content: string
+  startCount: number
+  createTime: string
+}
+
+export interface DishCommentPayload {
+  dishId: number
+  parentId: number
+  content: string
+}
+
 export interface DishSearchParams {
   keyword?: string
   sortBy?: 'comprehensive' | 'favorite' | 'activity' | 'time'
@@ -74,10 +123,102 @@ export function getDishSearchList(params: DishSearchParams) {
   })
 }
 
-export function getDishDetail(id: string | number) {
-  return request<DishDetail>({
-    url: `/dishes/${id}`,
-    method: 'get',
+export function getDishDetail(dishId: string | number) {
+  return request<DishDetailData>({
+    url: '/dish/detail',
+    method: 'post',
+    data: {
+      dishId,
+    },
+  })
+}
+
+export function getDishMaterialList(dishId: string | number) {
+  return request<DishMaterialItem[]>({
+    url: '/dishMaterial/list',
+    method: 'post',
+    data: {
+      dishId,
+    },
+  })
+}
+
+export function getDishFlavorList(dishId: string | number) {
+  return request<DishFlavorItem[]>({
+    url: '/dishFlavor/list',
+    method: 'post',
+    data: {
+      dishId,
+    },
+  })
+}
+
+export function getDishStepList(dishId: string | number) {
+  return request<DishStepItem[]>({
+    url: '/dishStep/list',
+    method: 'post',
+    data: {
+      dishId,
+    },
+  })
+}
+
+export function getDishCommentList(dishId: string | number, parentId = 0) {
+  return request<DishCommentItem[]>({
+    url: '/dishComment/list',
+    method: 'post',
+    data: {
+      dishId,
+      parentId,
+    },
+  })
+}
+
+export function addDishComment(data: DishCommentPayload) {
+  return request<null>({
+    url: '/dishComment/add',
+    method: 'post',
+    data,
+  })
+}
+
+export function deleteDishComment(commentId: number) {
+  return request<null>({
+    url: '/dishComment/delete',
+    method: 'post',
+    data: {
+      commentId,
+    },
+  })
+}
+
+export function starDishComment(commentId: number) {
+  return request<null>({
+    url: '/dishComment/star',
+    method: 'post',
+    data: {
+      commentId,
+    },
+  })
+}
+
+export function addDishCollect(dishId: number) {
+  return request<null>({
+    url: '/collect/add',
+    method: 'post',
+    data: {
+      dishId,
+    },
+  })
+}
+
+export function deleteDishCollect(dishId: number) {
+  return request<null>({
+    url: '/collect/delete',
+    method: 'post',
+    data: {
+      dishId,
+    },
   })
 }
 

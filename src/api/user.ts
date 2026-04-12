@@ -110,7 +110,7 @@ export function updateUserProfile(data: UserProfileForm) {
 
 export function getUserCollectList() {
   return request<UserCollectGroup[]>({
-    url: '/collect/day-group',
+    url: '/diet/day-group',
     method: 'post'
 
   })
