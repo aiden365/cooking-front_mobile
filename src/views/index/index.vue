@@ -3,17 +3,22 @@ import { ArrowDown, PlayCircleFill, Search2, StarN } from '@nutui/icons-vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { showToast } from '@nutui/nutui'
 import {
-  getHomeConfig,
-  getHomeRecipes,
-  type HomeRecipe,
-  type HomeTag,
-  type PlanItem,
-} from '../../api/home'
+  getDishPage,
+  type DishPage,
+  type DishItem,
+} from '../../api/dish'
 import {getUserDietPlan} from "../../api/user";
 import {getSystemLabels, SystemLabel} from "../../api/label";
 defineOptions({
   name: 'Index',
 })
+
+export interface PlanItem {
+  id: number
+  label: string
+  value: string
+}
+
 
 const keyword = ref('')
 const banners = ref<string[]>([
@@ -23,7 +28,7 @@ const banners = ref<string[]>([
 ])
 const plans = ref<PlanItem[]>([])
 const tags = ref<SystemLabel[]>([])
-const recipes = ref<HomeRecipe[]>([])
+const recipes = ref<DishItem[]>([])
 const activeBanner = ref(0)
 const pageNo = ref(1)
 const pageSize = 6
@@ -102,7 +107,7 @@ async function loadRecipes(isLoadMore = false) {
   }
 
   try {
-    const response = await getHomeRecipes(pageNo.value, pageSize)
+    const response = await getDishPage(pageNo.value, pageSize)
     const nextList = response.data.records
     recipes.value = isLoadMore ? [...recipes.value, ...nextList] : nextList
     hasMore.value = response.data.current < response.data.pages
@@ -238,8 +243,8 @@ onBeforeUnmount(() => {
           <article v-for="recipe in recipes" :key="recipe.id" class="recipe-card">
             <div class="recipe-cover-wrap">
               <img :src="recipe.imgPath" class="recipe-cover" />
-              <div v-if="recipe.badge" class="recipe-badge">{{ recipe.badge }}</div>
-              <div v-if="recipe.video" class="recipe-video">
+              <div v-if="recipe.labelNames?.length ?? 0 > 0" class="recipe-badge">{{ recipe.labelNames?.[0] ?? '' }}</div>
+              <div v-if="recipe.videoPath" class="recipe-video">
                 <PlayCircleFill size="14" color="#ffffff" />
               </div>
             </div>

@@ -3,16 +3,11 @@ import { request } from './request'
 export interface DishItem {
   id: number
   name: string
-  description: string
-  calories: number
-  tags: string[]
-  cover?: string
-  madeCount?: number
-  favoriteCount?: number
-  hasVideo?: boolean
-  popularity?: number
-  activity?: number
-  publishedAt?: string
+  imgPath: string
+  labelNames?: string[]
+  videoPath?: string
+  collectCount: number
+  shareCount:number
 }
 
 export interface DishIngredient {
@@ -69,12 +64,7 @@ export function getRecommendDishes() {
   })
 }
 
-export function getDishList() {
-  return request<{ list: DishItem[]; total: number }>({
-    url: '/dishes',
-    method: 'get',
-  })
-}
+
 
 export function getDishSearchList(params: DishSearchParams) {
   return request<{ list: DishItem[]; total: number; page: number; pageSize: number }>({
@@ -88,5 +78,29 @@ export function getDishDetail(id: string | number) {
   return request<DishDetail>({
     url: `/dishes/${id}`,
     method: 'get',
+  })
+}
+
+
+
+
+
+export interface DishPage {
+  records: DishItem[]
+  total: number
+  current: number
+  size: number
+  pages: number
+}
+
+
+export function getDishPage(pageNo: number, pageSize: number, search?: string) {
+  return request<DishPage>({
+    url: '/dish/page',
+    method: 'post',
+    data: {
+      pageNo,
+      pageSize,
+    },
   })
 }
