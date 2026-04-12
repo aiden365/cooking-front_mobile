@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, PlayCircleFill, Search2, StarN } from '@nutui/icons-vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { showToast } from '@nutui/nutui'
 import {
   getHomeConfig,
   getHomeRecipes,
@@ -8,27 +9,29 @@ import {
   type HomeTag,
   type PlanItem,
 } from '../../api/home'
-
+import {getUserDietPlan} from "../../api/user";
+import {getSystemLabels, SystemLabel} from "../../api/label";
 defineOptions({
   name: 'Index',
 })
 
 const keyword = ref('')
-const banners = ref<string[]>([])
+const banners = ref<string[]>([
+  'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1200&q=80',
+])
 const plans = ref<PlanItem[]>([])
-const tags = ref<HomeTag[]>([])
+const tags = ref<SystemLabel[]>([])
 const recipes = ref<HomeRecipe[]>([])
 const activeBanner = ref(0)
-const page = ref(1)
-const pageSize = 4
+const pageNo = ref(1)
+const pageSize = 6
 const loading = ref(false)
 const loadingMore = ref(false)
 const hasMore = ref(true)
 const errorMessage = ref('')
-const sentinelRef = ref<HTMLElement | null>(null)
-const feedSectionRef = ref<HTMLElement | null>(null)
 
-let observer: IntersectionObserver | null = null
 let bannerTimer: ReturnType<typeof setInterval> | null = null
 
 const bannerStyle = computed(() =>
@@ -37,6 +40,40 @@ const bannerStyle = computed(() =>
     opacity: index === activeBanner.value ? 1 : 0,
   })),
 )
+
+function getToday() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function stringToColor(str: string) {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  const colorPalettes = [
+    { color: '#ea580c', background: '#fff1eb' },
+    { color: '#dc2626', background: '#fef2f2' },
+    { color: '#16a34a', background: '#f0fdf4' },
+    { color: '#2563eb', background: '#eff6ff' },
+    { color: '#9333ea', background: '#faf5ff' },
+    { color: '#db2777', background: '#fdf2f8' },
+    { color: '#0891b2', background: '#ecfeff' },
+    { color: '#ca8a04', background: '#fefce8' },
+  ]
+
+  const index = Math.abs(hash) % colorPalettes.length
+  return colorPalettes[index]
+}
+
+
+// 使用
+const today = getToday()
+
 
 function startBannerRotation() {
   if (bannerTimer || banners.value.length <= 1) {
@@ -49,10 +86,6 @@ function startBannerRotation() {
 }
 
 async function loadHomeConfig() {
-  const response = await getHomeConfig()
-  banners.value = response.data.banners
-  plans.value = response.data.plans
-  tags.value = response.data.tags
   startBannerRotation()
 }
 
@@ -69,12 +102,10 @@ async function loadRecipes(isLoadMore = false) {
   }
 
   try {
-    const response = await getHomeRecipes(page.value, pageSize)
-    const nextList = response.data.list
-
+    const response = await getHomeRecipes(pageNo.value, pageSize)
+    const nextList = response.data.records
     recipes.value = isLoadMore ? [...recipes.value, ...nextList] : nextList
-    hasMore.value = response.data.hasMore
-    page.value += 1
+    hasMore.value = response.data.current < response.data.pages
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '首页数据加载失败'
   } finally {
@@ -83,42 +114,51 @@ async function loadRecipes(isLoadMore = false) {
   }
 }
 
-function setupObserver() {
-  if (!sentinelRef.value) {
-    return
-  }
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      const [entry] = entries
-
-      if (entry.isIntersecting && hasMore.value) {
-        void loadRecipes(true)
-      }
-    },
-    {
-      root: feedSectionRef.value,
-      rootMargin: '120px',
-    },
-  )
-
-  observer.observe(sentinelRef.value)
+async function handleLoadMore() {
+  setTimeout(() => {
+    pageNo.value += 1
+    loadRecipes(true);
+  },1000)
 }
+
+async function loadDietPlan() {
+
+  try {
+    const response = await getUserDietPlan(today)
+    for (let i = 0; i < 3; i++) {
+      plans.value[i] = {
+        id: response.data[i]?.dishes?.[0]?.id,
+        label: response.data[i]?.label ?? ['早餐', '午餐', '晚餐'][i],
+        value: response.data[i]?.dishes?.[0]?.name ?? '暂无'
+      }
+    }
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '饮食记录加载失败')
+  } finally {
+  }
+}
+
+async function loadSystemLabels(){
+  const systemResponse = await getSystemLabels({
+    pageNum: 1,
+    pageSize: 10
+  });
+  tags.value = systemResponse.data.records;
+}
+
 
 onMounted(async () => {
   try {
     await loadHomeConfig()
     await loadRecipes()
+    await loadDietPlan()
+    await loadSystemLabels();
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '首页数据加载失败'
   }
-
-  setupObserver()
 })
 
 onBeforeUnmount(() => {
-  observer?.disconnect()
-
   if (bannerTimer) {
     clearInterval(bannerTimer)
   }
@@ -178,42 +218,42 @@ onBeforeUnmount(() => {
           v-for="tag in tags"
           :key="tag.id"
           class="tag-pill"
-          :style="{ color: tag.color, background: tag.background }"
+          :style="stringToColor(tag.id+'-'+tag.labelName)"
         >
-          {{ tag.name }}
+          {{ tag.labelName }}
         </div>
       </section>
     </div>
 
-    <section ref="feedSectionRef" class="feed-section">
+    <section class="feed-section">
       <div v-if="errorMessage" class="state-text">{{ errorMessage }}</div>
       <div v-else-if="loading" class="state-text">首页内容加载中...</div>
-      <div v-else class="recipe-grid">
-        <article v-for="recipe in recipes" :key="recipe.id" class="recipe-card">
-          <div class="recipe-cover-wrap">
-            <img :src="recipe.cover" :alt="recipe.title" class="recipe-cover" />
-            <div v-if="recipe.badge" class="recipe-badge">{{ recipe.badge }}</div>
-            <div v-if="recipe.video" class="recipe-video">
-              <PlayCircleFill size="14" color="#ffffff" />
+      <nut-infinite-loading
+        v-else
+        :model-value="loadingMore"
+        :has-more="hasMore"
+        @load-more="handleLoadMore"
+      >
+        <div class="recipe-grid">
+          <article v-for="recipe in recipes" :key="recipe.id" class="recipe-card">
+            <div class="recipe-cover-wrap">
+              <img :src="recipe.imgPath" class="recipe-cover" />
+              <div v-if="recipe.badge" class="recipe-badge">{{ recipe.badge }}</div>
+              <div v-if="recipe.video" class="recipe-video">
+                <PlayCircleFill size="14" color="#ffffff" />
+              </div>
             </div>
-          </div>
-          <h3 class="recipe-title">{{ recipe.title }}</h3>
-          <div class="recipe-meta">
-            <div class="recipe-author">
-              <img :src="recipe.authorAvatar" :alt="recipe.author" class="author-avatar" />
-              <span>{{ recipe.author }}</span>
-            </div>
-            <div class="recipe-favorite">
-              <StarN size="12" color="#9ca3af" />
-              <span>{{ recipe.favoriteCount }}</span>
-            </div>
-          </div>
-        </article>
-      </div>
 
-      <div ref="sentinelRef" class="feed-sentinel" />
-      <p v-if="loadingMore" class="state-text state-text-small">正在加载更多菜谱...</p>
-      <p v-else-if="!hasMore && recipes.length" class="state-text state-text-small">没有更多菜谱了</p>
+            <div class="recipe-meta">
+              <h3 class="recipe-title">{{ recipe.name }}</h3>
+              <div class="recipe-favorite">
+                <StarN size="12" color="#9ca3af" />
+                <span>{{ recipe.collectCount }}</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </nut-infinite-loading>
     </section>
   </section>
 </template>
@@ -234,7 +274,7 @@ onBeforeUnmount(() => {
 
 .hero-carousel {
   position: relative;
-  height: 234px;
+  height: 180px;
   overflow: hidden;
 }
 
@@ -404,7 +444,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 10px;
   left: 10px;
-  max-width: 72px;
+  max-width: 80px;
   padding: 5px 9px;
   color: #f97316;
   font-size: 14px;
@@ -469,18 +509,10 @@ onBeforeUnmount(() => {
   border-radius: 999px;
 }
 
-.feed-sentinel {
-  height: 2px;
-}
-
 .state-text {
   padding: 28px 0;
   color: #9ca3af;
   font-size: 14px;
   text-align: center;
-}
-
-.state-text-small {
-  padding: 8px 0 16px;
 }
 </style>

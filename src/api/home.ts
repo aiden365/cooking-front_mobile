@@ -1,7 +1,8 @@
 import { request } from './request'
+import {UserShareItem} from "./user";
 
 export interface PlanItem {
-  id: string
+  id: number
   label: string
   value: string
 }
@@ -15,13 +16,11 @@ export interface HomeTag {
 
 export interface HomeRecipe {
   id: number
-  title: string
-  cover: string
+  name: string
+  imgPath: string
   badge: string
   video: boolean
-  author: string
-  authorAvatar: string
-  favoriteCount: string
+  collectCount: string
 }
 
 export interface HomeConfig {
@@ -31,10 +30,11 @@ export interface HomeConfig {
 }
 
 export interface HomeRecipePage {
-  list: HomeRecipe[]
-  page: number
-  pageSize: number
-  hasMore: boolean
+  records: HomeRecipe[]
+  total: number
+  current: number
+  size: number
+  pages: number
 }
 
 export function getHomeConfig() {
@@ -44,12 +44,12 @@ export function getHomeConfig() {
   })
 }
 
-export function getHomeRecipes(page: number, pageSize: number) {
+export function getHomeRecipes(pageNo: number, pageSize: number) {
   return request<HomeRecipePage>({
-    url: '/home/recipes',
-    method: 'get',
-    params: {
-      page,
+    url: '/dish/page',
+    method: 'post',
+    data: {
+      pageNo,
       pageSize,
     },
   })
