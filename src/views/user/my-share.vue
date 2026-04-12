@@ -14,33 +14,25 @@ const appliedKeyword = ref('')
 const loading = ref(true)
 const shareList = ref<UserShareItem[]>([])
 
-const filteredShares = computed(() => {
-  const value = appliedKeyword.value.trim()
-
-  if (!value) {
-    return shareList.value
-  }
-
-  return shareList.value.filter(
-    (item) =>
-      item.title.includes(value) || item.tags.some((tag) => tag.includes(value)),
-  )
-})
 
 function goBack() {
   router.push('/user/home')
 }
 
 function submitSearch() {
-  appliedKeyword.value = keyword.value.trim()
+  loadShares();
 }
 
 async function loadShares() {
   loading.value = true
 
   try {
-    const response = await getUserShareList()
-    shareList.value = response.data
+    const response = await getUserShareList({
+      pageNum: 1,
+      pageSize: -1,
+      search: appliedKeyword.value.trim(),
+    })
+    shareList.value = response.data.records;
   } catch (error) {
     showToast.fail(error instanceof Error ? error.message : '分享列表加载失败')
   } finally {
@@ -79,16 +71,16 @@ onMounted(() => {
     </section>
 
     <section v-if="loading" class="state-text">正在加载我的分享...</section>
-    <section v-else-if="!filteredShares.length" class="state-text">没有找到相关分享内容</section>
+    <section v-else-if="!shareList.length" class="state-text">没有找到相关分享内容</section>
     <section v-else class="share-grid">
-      <article v-for="item in filteredShares" :key="item.id" class="share-card">
-        <img :src="item.cover" :alt="item.title" class="share-cover" />
+      <article v-for="item in shareList" :key="item.id" class="share-card">
+        <img :src="item.imgPath" class="share-cover" />
         <div class="share-card-body">
-          <h2 class="share-title">{{ item.title }}</h2>
+          <h2 class="share-title">{{ item.dishName }}</h2>
           <div class="share-meta">
             <span class="share-likes">
               <HeartN size="17" color="#a9a9ad" />
-              <span>{{ item.likes }}</span>
+              <span>{{ item.startCount }}</span>
             </span>
           </div>
         </div>

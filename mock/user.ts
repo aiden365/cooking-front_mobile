@@ -86,7 +86,7 @@ export function setupUserMock() {
     ],
   }))*/
 
-  Mock.mock(/\/api\/user\/shares$/, 'get', () => ({
+  /*Mock.mock(/\/api\/user\/shares$/, 'get', () => ({
     code: 200,
     message: '获取我的分享成功',
     data: [
@@ -119,7 +119,7 @@ export function setupUserMock() {
         tags: ['时蔬拼盘', '减脂'],
       },
     ],
-  }))
+  }))*/
 
   Mock.mock(/\/api\/user\/label\/\d+$/, 'get', () => ({
     code: 200,

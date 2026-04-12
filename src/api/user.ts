@@ -21,12 +21,34 @@ export interface UserCollectGroup {
   dishes: UserCollectedDish[]
 }
 
+
+
 export interface UserShareItem {
   id: number
-  title: string
-  cover: string
-  likes: number
-  tags: string[]
+  dishId: number
+  dishName: string
+  description: string
+  imgPath: string
+  startCount: number
+  createTime: string
+}
+
+export interface UserSharePage {
+  success: boolean;
+  code: number;
+  data: {
+    records: UserShareItem[];
+    total: number;
+    current: number;
+    size: number;
+  };
+  message: string;
+}
+
+export interface SharePageReq{
+  pageNum: number
+  pageSize: number
+  search?: string
 }
 
 export interface SystemNutritionItem {
@@ -87,10 +109,11 @@ export function getUserCollectList() {
   })
 }
 
-export function getUserShareList() {
-  return request<UserShareItem[]>({
-    url: '/user/shares',
-    method: 'get',
+export function getUserShareList(data:SharePageReq  ) {
+  return request<UserSharePage>({
+    url: 'share/page',
+    method: 'post',
+    data
   })
 }
 
