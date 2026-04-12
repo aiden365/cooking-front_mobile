@@ -1,285 +1,156 @@
 <script setup lang="ts">
 import { Search2, StarN } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import backgroundImage from '../../assets/img/background1.png'
-import bowlImage from '../../assets/img/bowl.png'
-import dishImage1 from '../../assets/img/dish1.png'
-import dishImage2 from '../../assets/img/dish2.png'
+import { getDishPage, type DishItem } from '../../api/dish'
+import { getSystemLabels, type SystemLabel } from '../../api/label'
 
 defineOptions({
   name: 'DishList',
 })
 
-type DishCategory =
-  | '热门专题'
-  | '禽类肉类'
-  | '蔬菜水果'
-  | '汤粥主食'
-  | '水产海鲜'
-  | '蛋奶豆制品'
-  | '米面杂粮'
-  | '烘焙西点'
-  | '甜品饮料'
-  | '腌咸制品'
-  | '特色小吃'
-  | '烧烤炸串'
-  | '节日节气'
-
-type DishListItem = {
+type CategoryOption = {
   id: number
-  name: string
-  duration: string
-  difficulty: string
-  style: string
-  madeCount: string
-  favoriteText: string
-  category: DishCategory
-  cover: string
-  hasVideo?: boolean
+  labelName: string
+  isAll?: boolean
 }
 
 const router = useRouter()
 const keyword = ref('')
-const currentPage = ref(1)
-const pageSize = 4
-const isLoadingMore = ref(false)
+const labels = ref<SystemLabel[]>([])
+const activeCategoryId = ref<number>(0)
+const dishes = ref<DishItem[]>([])
+const pageNo = ref(1)
+const pageSize = 3
+const loading = ref(false)
+const loadingMore = ref(false)
+const labelLoading = ref(true)
+const hasMore = ref(true)
+const errorMessage = ref('')
 
-const categories: DishCategory[] = [
-  '热门专题',
-  '禽类肉类',
-  '蔬菜水果',
-  '汤粥主食',
-  '水产海鲜',
-  '蛋奶豆制品',
-  '米面杂粮',
-  '烘焙西点',
-  '甜品饮料',
-  '腌咸制品',
-  '特色小吃',
-  '烧烤炸串',
-  '节日节气',
-]
+const categoryOptions = computed<CategoryOption[]>(() => [
+  { id: 0, labelName: '全部', isAll: true },
+  ...labels.value,
+])
 
-const activeCategory = ref<DishCategory>('热门专题')
+const activeCategory = computed(
+  () => categoryOptions.value.find((item) => item.id === activeCategoryId.value) ?? categoryOptions.value[0],
+)
 
-const allDishes: DishListItem[] = [
-  {
-    id: 11,
-    name: '荷塘小炒',
-    duration: '15分钟',
-    difficulty: '零厨艺',
-    style: '清爽鲜香',
-    madeCount: '125人做过',
-    favoriteText: '1.2w',
-    category: '热门专题',
-    cover: backgroundImage,
-    hasVideo: true,
-  },
-  {
-    id: 12,
-    name: '麻婆豆腐',
-    duration: '15分钟',
-    difficulty: '用料少',
-    style: '超下饭',
-    madeCount: '63人做过',
-    favoriteText: '9855',
-    category: '热门专题',
-    cover: bowlImage,
-  },
-  {
-    id: 1,
-    name: '红烧排骨',
-    duration: '15分钟',
-    difficulty: '零厨艺',
-    style: '浓香入味',
-    madeCount: '49人做过',
-    favoriteText: '1.2w',
-    category: '禽类肉类',
-    cover: dishImage1,
-  },
-  {
-    id: 13,
-    name: '干锅花菜',
-    duration: '15分钟',
-    difficulty: '零厨艺',
-    style: '焦香脆嫩',
-    madeCount: '120人做过',
-    favoriteText: '1.6w',
-    category: '蔬菜水果',
-    cover: dishImage2,
-    hasVideo: true,
-  },
-  {
-    id: 14,
-    name: '冬瓜排骨汤',
-    duration: '35分钟',
-    difficulty: '家常汤品',
-    style: '清甜不腻',
-    madeCount: '88人做过',
-    favoriteText: '7560',
-    category: '汤粥主食',
-    cover: backgroundImage,
-  },
-  {
-    id: 15,
-    name: '蒜蓉粉丝虾',
-    duration: '20分钟',
-    difficulty: '宴客菜',
-    style: '鲜香入味',
-    madeCount: '72人做过',
-    favoriteText: '8921',
-    category: '水产海鲜',
-    cover: bowlImage,
-  },
-  {
-    id: 16,
-    name: '西红柿炒蛋',
-    duration: '10分钟',
-    difficulty: '零失败',
-    style: '酸甜开胃',
-    madeCount: '132人做过',
-    favoriteText: '1.8w',
-    category: '蛋奶豆制品',
-    cover: bowlImage,
-  },
-  {
-    id: 17,
-    name: '葱油拌面',
-    duration: '12分钟',
-    difficulty: '快手主食',
-    style: '葱香浓郁',
-    madeCount: '95人做过',
-    favoriteText: '6688',
-    category: '米面杂粮',
-    cover: backgroundImage,
-  },
-  {
-    id: 18,
-    name: '纸杯蛋糕',
-    duration: '40分钟',
-    difficulty: '新手烘焙',
-    style: '松软香甜',
-    madeCount: '56人做过',
-    favoriteText: '5250',
-    category: '烘焙西点',
-    cover: dishImage2,
-  },
-  {
-    id: 19,
-    name: '杨枝甘露',
-    duration: '18分钟',
-    difficulty: '夏日甜品',
-    style: '冰爽顺滑',
-    madeCount: '61人做过',
-    favoriteText: '7190',
-    category: '甜品饮料',
-    cover: bowlImage,
-  },
-  {
-    id: 20,
-    name: '自制腊肠炒饭',
-    duration: '18分钟',
-    difficulty: '香气十足',
-    style: '粒粒分明',
-    madeCount: '40人做过',
-    favoriteText: '4032',
-    category: '腌咸制品',
-    cover: dishImage1,
-  },
-  {
-    id: 21,
-    name: '葱油饼',
-    duration: '25分钟',
-    difficulty: '街头风味',
-    style: '外酥里软',
-    madeCount: '84人做过',
-    favoriteText: '8120',
-    category: '特色小吃',
-    cover: dishImage2,
-  },
-  {
-    id: 22,
-    name: '香辣鸡翅',
-    duration: '30分钟',
-    difficulty: '聚会小食',
-    style: '麻辣过瘾',
-    madeCount: '77人做过',
-    favoriteText: '9340',
-    category: '烧烤炸串',
-    cover: dishImage1,
-  },
-  {
-    id: 23,
-    name: '腊八粥',
-    duration: '45分钟',
-    difficulty: '节日必备',
-    style: '软糯香甜',
-    madeCount: '58人做过',
-    favoriteText: '6420',
-    category: '节日节气',
-    cover: backgroundImage,
-  },
-]
-
-const filteredDishes = computed(() => {
-  if (activeCategory.value === '热门专题') {
-    return allDishes
+function getDishSearchKeyword() {
+  if (activeCategory.value?.isAll) {
+    return undefined
   }
 
-  return allDishes.filter((item) => item.category === activeCategory.value)
-})
-
-const visibleDishes = computed(() => filteredDishes.value.slice(0, currentPage.value * pageSize))
-const hasMore = computed(() => visibleDishes.value.length < filteredDishes.value.length)
-
-function selectCategory(category: DishCategory) {
-  activeCategory.value = category
-  currentPage.value = 1
+  return activeCategory.value?.labelName
 }
 
 function handleSearch() {
-  const trimmedKeyword = keyword.value.trim()
+  pageNo.value = 1
+  hasMore.value = true
+  dishes.value = []
+  loadDishList();
 
-  if (!trimmedKeyword) {
-    showToast.text('请输入菜名')
-    return
-  }
-
-  router.push({
+  /*router.push({
     path: '/dish/search',
     query: {
       keyword: trimmedKeyword,
     },
-  })
+  })*/
 }
 
 function goDetail(id: number) {
   router.push(`/dish/detail/${id}`)
 }
 
-function loadMore() {
-  if (!hasMore.value || isLoadingMore.value) {
+async function loadCategories() {
+  labelLoading.value = true
+
+  try {
+    const response = await getSystemLabels({
+      pageNum: 1,
+      pageSize: -1,
+    })
+
+    labels.value = response.data.records
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '菜谱标签加载失败')
+  } finally {
+    labelLoading.value = false
+  }
+}
+
+async function loadDishList(isLoadMore = false) {
+  if ((hasMore.value && isLoadMore) || loading.value || loadingMore.value) {
     return
   }
 
-  isLoadingMore.value = true
+  if (isLoadMore) {
+    loadingMore.value = true
+  } else {
+    loading.value = true
+    errorMessage.value = ''
+  }
 
-  window.setTimeout(() => {
-    currentPage.value += 1
-    isLoadingMore.value = false
-  }, 240)
-}
+  try {
 
-function handleListScroll(event: Event) {
-  const target = event.target as HTMLElement
+    const response = await getDishPage(pageNo.value, pageSize, keyword.value, activeCategoryId.value)
+    const nextList = response.data.records
+    dishes.value = isLoadMore ? [...dishes.value, ...nextList] : nextList
+    hasMore.value = response.data.current < response.data.pages
 
-  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 90) {
-    loadMore()
+    if (response.data.pages === 0 || nextList.length < pageSize) {
+      hasMore.value = false
+    }
+
+    pageNo.value += 1
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '菜谱列表加载失败'
+
+    if (isLoadMore) {
+      showToast.fail(message)
+    } else {
+      errorMessage.value = message
+    }
+  } finally {
+    loading.value = false
+    loadingMore.value = false
   }
 }
+
+async function selectCategory(categoryId: number) {
+  if (activeCategoryId.value === categoryId && dishes.value.length) {
+    return
+  }
+
+  activeCategoryId.value = categoryId
+  pageNo.value = 1
+  hasMore.value = true
+  dishes.value = []
+  await loadDishList()
+}
+
+async function handleLoadMore() {
+  await loadDishList(true)
+}
+
+async function reloadDishList() {
+  pageNo.value = 1
+  hasMore.value = true
+  dishes.value = []
+  await loadDishList()
+}
+
+function dishTags(dish: DishItem) {
+  return (dish.labelNames ?? []).filter(Boolean).slice(0, 3)
+}
+
+onMounted(async () => {
+  await loadCategories()
+  await loadDishList()
+})
 </script>
 
 <template>
@@ -300,54 +171,62 @@ function handleListScroll(event: Event) {
 
     <section class="content-panel">
       <aside class="category-panel">
-        <button
-          v-for="category in categories"
-          :key="category"
-          type="button"
-          class="category-item"
-          :class="{ 'category-item-active': activeCategory === category }"
-          @click="selectCategory(category)"
-        >
-          {{ category }}
-        </button>
+        <div v-if="labelLoading" class="category-state">加载中...</div>
+        <template v-else>
+          <button
+            v-for="category in categoryOptions"
+            :key="category.id"
+            type="button"
+            class="category-item"
+            :class="{ 'category-item-active': activeCategoryId === category.id }"
+            @click="selectCategory(category.id)"
+          >
+            {{ category.labelName }}
+          </button>
+        </template>
       </aside>
 
-      <div class="dish-panel" @scroll.passive="handleListScroll">
-        <article
-          v-for="dish in visibleDishes"
-          :key="dish.id"
-          class="dish-card"
-          @click="goDetail(dish.id)"
+      <div class="dish-panel">
+        <div v-if="errorMessage" class="panel-state">
+          <p>{{ errorMessage }}</p>
+          <button class="retry-button" type="button" @click="reloadDishList">重新加载</button>
+        </div>
+        <div v-else-if="loading" class="panel-state">菜谱加载中...</div>
+        <div v-else-if="!dishes.length" class="panel-state">暂无相关菜谱</div>
+        <nut-infinite-loading
+          v-else
+          v-model="loadingMore"
+          :has-more="hasMore"
+          @load-more="handleLoadMore"
         >
-          <div class="cover-wrap">
-            <img :src="dish.cover" :alt="dish.name" class="dish-cover" />
-            <div v-if="dish.hasVideo" class="play-badge">
-              <span class="play-triangle" />
+          <article
+            v-for="dish in dishes"
+            :key="dish.id"
+            class="dish-card"
+            @click="goDetail(dish.id)"
+          >
+            <div class="cover-wrap">
+              <img :src="dish.imgPath" :alt="dish.name" class="dish-cover" />
+              <div v-if="dish.videoPath" class="play-badge">
+                <span class="play-triangle" />
+              </div>
             </div>
-          </div>
 
-          <div class="dish-info">
-            <h2>{{ dish.name }}</h2>
-            <div class="dish-tags">
-              <span>{{ dish.duration }}</span>
-              <span>{{ dish.difficulty }}</span>
-              <span>{{ dish.style }}</span>
+            <div class="dish-info">
+              <h2>{{ dish.name }}</h2>
+              <div class="dish-tags">
+                <span v-for="tag in dishTags(dish)" :key="`${dish.id}-${tag}`">{{ tag }}</span>
+              </div>
+              <div class="dish-footer">
+                <span class="made-count">{{ dish.shareCount }}人做过</span>
+                <span class="favorite-count">
+                  <StarN size="16" color="#a8a8ad" />
+                  {{ dish.collectCount }}
+                </span>
+              </div>
             </div>
-            <div class="dish-footer">
-              <span class="made-count">{{ dish.madeCount }}</span>
-              <span class="favorite-count">
-                <StarN size="16" color="#a8a8ad" />
-                {{ dish.favoriteText }}
-              </span>
-            </div>
-          </div>
-        </article>
-
-        <footer class="list-footer">
-          <span v-if="isLoadingMore">加载中...</span>
-          <span v-else-if="hasMore">下拉继续加载</span>
-          <span v-else>已经到底啦</span>
-        </footer>
+          </article>
+        </nut-infinite-loading>
       </div>
     </section>
   </section>
@@ -445,6 +324,13 @@ function handleListScroll(event: Event) {
   background: linear-gradient(180deg, #ff7667 0%, #ff6a5b 100%);
 }
 
+.category-state {
+  padding: 20px 12px;
+  color: #b3b3b9;
+  font-size: 13px;
+  text-align: center;
+}
+
 .dish-panel {
   flex: 1;
   overflow-y: auto;
@@ -514,16 +400,18 @@ function handleListScroll(event: Event) {
 }
 
 .dish-tags {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 8px;
-  margin-top: 24px;
-  color: #2d2d2d;
-  font-size: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
 }
 
-.dish-tags span:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
+.dish-tags span {
+  padding: 4px 8px;
+  color: #2d2d2d;
+  font-size: 13px;
+  background: #fff0ed;
+  border-radius: 999px;
 }
 
 .dish-footer {
@@ -543,10 +431,25 @@ function handleListScroll(event: Event) {
   flex-shrink: 0;
 }
 
-.list-footer {
-  padding: 10px 0 calc(12px + env(safe-area-inset-bottom));
+.panel-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 240px;
   color: #b3b3b9;
-  font-size: 13px;
+  font-size: 14px;
   text-align: center;
+}
+
+.retry-button {
+  min-width: 96px;
+  height: 34px;
+  color: #ff6a5b;
+  font-size: 14px;
+  background: #fff1ef;
+  border: none;
+  border-radius: 999px;
 }
 </style>

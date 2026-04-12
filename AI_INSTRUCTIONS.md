@@ -135,41 +135,8 @@ cooking-front_mobile
 > **开发者指令：** 
 > 现在，让我们开始`菜谱列表页面接口对接`吧
 > 1. 请在 `src/views/dish/dish-list.vue` 页面及相关ts文件中完成接口对接工作
-> 2. 该页面总共需要对接两个接口，即系统菜谱标签列表接口和菜谱列表接口
-> 3. 菜谱标签列表接口 已在 'src/api/label.ts' 文件实现 使用 getSystemLabels 方法即可调用
-> 3. 菜谱分页列表接口 已在 'src/api/label.ts' 文件实现 使用 getSystemLabels 方法即可调用为空。
-> 3. 在实现接口对接工作时，使用TS对象对接口请求和返回的数据进行类型定义
-> 4. 我发现当前页面缺少上拉分页功能和下拉刷新功能，在接口对接时请添加下拉分页功能和上拉刷新功能
-> 5. 接口返回的数据结构如下JSON所示
-> 6. 接口地址：post /share/page
-
-
-```json5
-
-//用户分享列表接口返回数据结构
-
-{
-  "code":0,
-  "data":{
-    "current":1,
-    "pages":1,
-    "records":[
-      {
-        "createTime":"2026-04-09 02:50:39",
-        "dishId":7,
-        "dishName":"西红柿炒鸡蛋",
-        "id":1,
-        "imgPath":"/UploadFile/xxx.png",
-        "startCount":0,
-        "userId":1,
-        "userName":"超级管理员"
-      }
-    ],
-    "size":7,
-    "total":2
-  },
-  "message":"success"
-}
-
-
-```
+> 2. 该页面总共需要对接两个接口，即页面左侧的系统菜谱标签列表接口和右侧的菜谱分页列表接口
+> 3. 菜谱标签列表接口 已在 'src/api/label.ts' 文件实现 使用 getSystemLabels 方法即可调用 其返回信息如 SystemLabelPage 定义
+> 4. 菜谱分页列表接口 已在 'src/api/dish.ts' 文件实现 使用 getDishPage 方法即可调用，其返回信息如 DishPage 定义
+> 5. 对于 菜谱分页列表，使用 NutUI自带的组件， 参照 index.vue 中的 nut-infinite-loading 用法
+> 6. 

@@ -94,13 +94,15 @@ export interface DishPage {
 }
 
 
-export function getDishPage(pageNo: number, pageSize: number, search?: string) {
+export function getDishPage(pageNo: number, pageSize: number, search?: string, labelId?: number) {
   return request<DishPage>({
     url: '/dish/page',
     method: 'post',
     data: {
       pageNo,
       pageSize,
+      search,
+      labelId
     },
   })
 }

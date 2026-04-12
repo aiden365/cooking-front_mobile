@@ -154,17 +154,23 @@ onMounted(() => {
             class="dish-card"
             @click="goDetail(dish.id)"
           >
-            <img :src="dish.cover" :alt="dish.name" class="dish-cover" />
+            <img :src="dish.imgPath" :alt="dish.name" class="dish-cover" />
             <div class="dish-info">
-              <h2>{{ dish.name }}，孩子们的最爱</h2>
+              <h2>{{ dish.name }}</h2>
               <div class="tag-row">
-                <span v-for="tag in dish.tags?.slice(0, 2)" :key="tag" class="dish-tag">{{ tag }}</span>
+                <span
+                  v-for="tag in dish.labelNames?.slice(0, 2) ?? []"
+                  :key="tag"
+                  class="dish-tag"
+                >
+                  {{ tag }}
+                </span>
               </div>
               <div class="dish-meta">
-                <span>{{ dish.madeCount || 0 }}人做过</span>
+                <span>{{ dish.shareCount || 0 }}人做过</span>
                 <span class="favorite-meta">
                   <StarN size="15" color="#a0a4ab" />
-                  {{ dish.favoriteCount || 0 }}
+                  {{ dish.collectCount || 0 }}
                 </span>
               </div>
             </div>
