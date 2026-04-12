@@ -144,11 +144,14 @@ async function loadAILabels() {
 
   try {
     const [systemResponse, userResponse] = await Promise.all([
-      getSystemLabels(),
-      getUserLabels(currentUserId),
+      getSystemLabels({
+        pageNum: 1,
+        pageSize: -1,
+      }),
+      getUserLabels(),
     ])
 
-    aiLabels.value = systemResponse.data
+    aiLabels.value = systemResponse.data.records
     selectedLabelIds.value = userResponse.data
     aiLoaded.value = true
   } catch (error) {
@@ -170,7 +173,7 @@ function toggleLabel(labelId: number) {
 function handleGeneratePlan() {
   const selectedNames = aiLabels.value
     .filter((label) => selectedLabelIds.value.includes(label.id))
-    .map((label) => label.name)
+    .map((label) => label.labelName)
 
   showAIPanel.value = false
 
@@ -357,7 +360,7 @@ onBeforeUnmount(() => {
             :class="{ 'ai-label-chip-active': selectedLabelIds.includes(label.id) }"
             @click="toggleLabel(label.id)"
           >
-            {{ label.name }}
+            {{ label.labelName }}
           </button>
         </div>
       </div>

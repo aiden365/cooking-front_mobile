@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Star } from '@nutui/icons-vue'
-import { computed } from 'vue'
+import { computed, onMounted, ref} from 'vue'
 import { useRouter } from 'vue-router'
 import MdiFoodForkDrink from '~icons/mdi/food-fork-drink'
 import MdiShareVariantOutline from '~icons/mdi/share-variant-outline'
@@ -8,18 +8,28 @@ import MdiTagOutline from '~icons/mdi/tag-outline'
 import MdiNutrition from '~icons/mdi/nutrition'
 import MdiChevronRight from '~icons/mdi/chevron-right'
 import MdiCalendarMonthOutline from '~icons/mdi/calendar-month-outline'
-
+import {getUserProfile, getUserStatistics, type UserStatistics, type UserProfileForm} from '../../api/user'
+import { showToast } from '@nutui/nutui'
 defineOptions({
   name: 'MyIndex',
 })
 
 const router = useRouter()
 
-const userInfo = {
-  name: '芒果爱酸奶',
-  gender: '保密',
-}
-
+const userInfo = ref<UserProfileForm>({
+  userName: '',
+  email: '',
+  gender: 1,
+  stature: '',
+  weight: '',
+})
+const userStatistics = ref<UserStatistics>({
+  collectCount: 0,
+  shareCount: 0,
+  labelCount: 0,
+  nutritionCount: 0,
+  individualDishCount: 0,
+})
 const stats = [
   { label: '收藏', value: 0 },
   { label: '分享', value: 0 },
@@ -57,11 +67,33 @@ const featureItems = [
   },
 ]
 
-const avatarText = computed(() => userInfo.name.slice(0, 1))
+const avatarText = computed(() => userInfo.value?.userName.slice(0, 1) ?? "");
 
 function navigateTo(path: string) {
   router.push(path)
 }
+
+async function loadUserInfo() {
+
+  try {
+    const [getUserStatisticsRes, getUserProfileRes] = await Promise.all([
+      getUserStatistics(),
+      getUserProfile(),
+    ])
+
+    userStatistics.value = getUserStatisticsRes.data;
+    userInfo.value = getUserProfileRes.data;
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '饮食记录加载失败')
+  }
+}
+
+onMounted(() => {
+
+  loadUserInfo();
+
+})
+
 </script>
 
 <template>
@@ -70,8 +102,8 @@ function navigateTo(path: string) {
       <div class="profile-summary">
         <div class="avatar">{{ avatarText }}</div>
         <div class="identity">
-          <h1 class="name">{{ userInfo.name }}</h1>
-          <p class="meta">性别:{{ userInfo.gender }}</p>
+          <h1 class="name">{{ userInfo?.userName }}</h1>
+          <p class="meta">性别:{{ userInfo.gender ? (userInfo.gender == 1 ? '男' : '女') : '保密' }}</p>
         </div>
       </div>
       <button class="profile-button" type="button" @click="navigateTo('/user/my-profile')">
@@ -80,10 +112,23 @@ function navigateTo(path: string) {
     </header>
 
     <section class="stats-card">
-      <div v-for="item in stats" :key="item.label" class="stat-item">
-        <div class="stat-value">{{ item.value }}</div>
-        <div class="stat-label">{{ item.label }}</div>
+      <div class="stat-item">
+        <div class="stat-value">{{ userStatistics.collectCount }}</div>
+        <div class="stat-label">收藏</div>
       </div>
+      <div class="stat-item">
+        <div class="stat-value">{{ userStatistics.shareCount }}</div>
+        <div class="stat-label">分享</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">{{ userStatistics.labelCount }}</div>
+        <div class="stat-label">标签</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">{{ userStatistics.nutritionCount }}</div>
+        <div class="stat-label">营养</div>
+      </div>
+
     </section>
 
     <button class="individual-card" type="button" @click="navigateTo('/user/my-individual-dish')">
@@ -91,7 +136,7 @@ function navigateTo(path: string) {
         <div class="individual-icon">
           <MdiFoodForkDrink />
         </div>
-        <strong class="individual-count">{{ individualDishCount }}</strong>
+        <strong class="individual-count">{{ userStatistics.individualDishCount }}</strong>
       </div>
       <div class="individual-action">
         <span>管理个性化菜谱</span>

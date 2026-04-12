@@ -1,5 +1,4 @@
 import { request } from './request'
-import {UserShareItem} from "./user";
 
 export interface SystemLabel {
   id: number
@@ -7,21 +6,17 @@ export interface SystemLabel {
 }
 
 export interface SystemLabelPage {
-  code: number;
-  data: {
-    records: SystemLabel[];
-    total: number;
-    current: number;
-    size: number;
-  };
-  message: string;
+  records: SystemLabel[]
+  total: number
+  current: number
+  size: number
 }
 
-export function getSystemLabels(data:any) {
+export function getSystemLabels(data: { pageNum: number; pageSize: number; search?: string }) {
   return request<SystemLabelPage>({
     url: 'label/page',
     method: 'post',
-    data
+    data,
   })
 }
 

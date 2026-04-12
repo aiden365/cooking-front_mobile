@@ -7,7 +7,7 @@ import '@nutui/icons-vue/dist/style_iconfont.css'
 import App from './App.vue'
 import { setupMock } from '../mock'
 import { CalendarCard } from '@nutui/nutui'
-
+import { Toast } from '@nutui/nutui'
 setupMock()
 
-createApp(App).use(router).use(IconFont).use(CalendarCard).mount('#app')
+createApp(App).use(router).use(Toast).use(IconFont).use(CalendarCard).mount('#app')

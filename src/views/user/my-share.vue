@@ -1,4 +1,5 @@
-<script setup lang="ts">import { Left, Search2, HeartN } from '@nutui/icons-vue'
+<script setup lang="ts">
+import { Left, Search2, HeartN } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -20,7 +21,8 @@ function goBack() {
 }
 
 function submitSearch() {
-  loadShares();
+  appliedKeyword.value = keyword.value.trim()
+  loadShares()
 }
 
 async function loadShares() {
@@ -31,7 +33,7 @@ async function loadShares() {
       pageSize: -1,
       dishName: appliedKeyword.value.trim(),
     })
-    shareList.value = response.data.records;
+    shareList.value = response.data.records
   } catch (error) {
     showToast.fail(error instanceof Error ? error.message : '分享列表加载失败')
   } finally {
@@ -213,4 +215,3 @@ onMounted(() => {
   text-align: center;
 }
 </style>
-emplate>

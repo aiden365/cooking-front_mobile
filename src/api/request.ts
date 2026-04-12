@@ -38,6 +38,8 @@ service.interceptors.response.use(
         : ''
     const message = serverMessage || error.message || '网络异常，请稍后再试'
 
+    let err = new Error(message);
+    console.log("接口请求失败", err);
     return Promise.reject(new Error(message))
   },
 )
@@ -47,7 +49,10 @@ export function request<T>(config: AxiosRequestConfig) {
     const { data } = response
 
     if (![0, 200].includes(data.code)) {
-      return Promise.reject(new Error(data.message || '请求失败'))
+        debugger;
+      let err = new Error(data.message || '请求失败');
+      console.log("接口请求失败", err);
+      return Promise.reject(err);
     }
 
     return data

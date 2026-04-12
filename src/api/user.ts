@@ -1,10 +1,10 @@
 import { request } from './request'
 
 export interface UserProfileForm {
-  name: string
+  userName: string
   email: string
-  gender: '男' | '女' | '保密'
-  height: string
+  gender: 1 | 2 | null
+  stature: string
   weight: string
 }
 
@@ -34,15 +34,10 @@ export interface UserShareItem {
 }
 
 export interface UserSharePage {
-  success: boolean;
-  code: number;
-  data: {
-    records: UserShareItem[];
-    total: number;
-    current: number;
-    size: number;
-  };
-  message: string;
+  records: UserShareItem[]
+  total: number
+  current: number
+  size: number
 }
 
 export interface SharePageReq{
@@ -82,22 +77,32 @@ export interface UserDietDish {
   hasVideo?: boolean
 }
 
+export interface UserStatistics {
+  collectCount: number
+  shareCount: number
+  labelCount: number
+  nutritionCount: number
+  individualDishCount: number
+}
+
 export interface UserDietMeal {
   key: 'breakfast' | 'lunch' | 'dinner'
   label: '早餐' | '午餐' | '晚餐'
   dishes: UserDietDish[]
 }
 
+
 export function getUserProfile() {
   return request<UserProfileForm>({
-    url: '/user/profile',
-    method: 'get',
+    url: '/user/detail',
+    method: 'post',
+    data: {},
   })
 }
 
 export function updateUserProfile(data: UserProfileForm) {
   return request<null>({
-    url: '/user/profile',
+    url: '/user/save',
     method: 'post',
     data,
   })
@@ -164,4 +169,14 @@ export function deleteUserDietPlan(dietId: number) {
     data: { dietId },
   })
 }
+
+export function getUserStatistics() {
+  return request<UserStatistics>({
+    url: 'user/statistics',
+    method: 'post',
+
+  })
+}
+
+
 

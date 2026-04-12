@@ -14,21 +14,25 @@ const saving = ref(false)
 const loading = ref(true)
 
 const form = reactive<UserProfileForm>({
-  name: '',
+  userName: '',
   email: '',
-  gender: '保密',
-  height: '',
+  gender: 1,
+  stature: '',
   weight: '',
 })
 
 const fieldRows = [
-  { key: 'name', label: '名称', placeholder: '请输入名称' },
+  { key: 'userName', label: '名称', placeholder: '请输入名称' },
   { key: 'email', label: '邮箱', placeholder: '请输入邮箱' },
-  { key: 'height', label: '身高', placeholder: '请输入身高，单位：cm' },
+  { key: 'stature', label: '身高', placeholder: '请输入身高，单位：cm' },
   { key: 'weight', label: '体重', placeholder: '请输入体重，单位：kg' },
 ] as const
 
-const genderOptions: UserProfileForm['gender'][] = ['男', '女', '保密']
+const genderOptions = [
+  { key: 1, label: '男' },
+  { key: 2, label: '女' },
+  { key: null, label: '保密' },
+] as const
 
 async function loadProfile() {
   loading.value = true
@@ -49,7 +53,9 @@ function goBack() {
 }
 
 async function handleSave() {
-  if (!form.name.trim()) {
+  showToast.success('请输入邮箱')
+
+  if (!form.userName.trim()) {
     showToast.text('请输入名称')
     return
   }
@@ -64,10 +70,10 @@ async function handleSave() {
   try {
     await updateUserProfile({
       ...form,
-      name: form.name.trim(),
+      userName: form.userName.trim(),
       email: form.email.trim(),
-      height: form.height.trim(),
-      weight: form.weight.trim(),
+      stature: form.stature.trim(),
+      weight: form.weight,
     })
     showToast.success('保存成功')
   } catch (error) {
@@ -101,24 +107,23 @@ onMounted(() => {
             :id="row.key"
             v-model="form[row.key]"
             class="form-input"
-            :class="{ 'form-input-placeholder': row.key === 'height' && !form.height }"
             :placeholder="row.placeholder"
             type="text"
           />
         </div>
 
         <div class="form-row form-row-gender">
-          <span class="form-label">性别</span>
+          <span class="form-label form-label-gender">性别</span>
           <div class="gender-group">
             <button
               v-for="option in genderOptions"
-              :key="option"
+              :key="String(option.key)"
               class="gender-option"
-              :class="{ 'gender-option-active': form.gender === option }"
+              :class="{ 'gender-option-active': form.gender === option.key }"
               type="button"
-              @click="form.gender = option"
+              @click="form.gender = option.key"
             >
-              {{ option }}
+              {{ option.label }}
             </button>
           </div>
         </div>
@@ -223,11 +228,16 @@ onMounted(() => {
   padding-top: 6px;
 }
 
+.form-label-gender {
+  margin-top: 5px;
+}
+
 .gender-group {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  padding-top: 2px;
+  padding-top: 8px;
+  margin-left: -8px;
 }
 
 .gender-option {
