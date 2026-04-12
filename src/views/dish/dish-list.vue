@@ -23,7 +23,7 @@ const labels = ref<SystemLabel[]>([])
 const activeCategoryId = ref<number>(0)
 const dishes = ref<DishItem[]>([])
 const pageNo = ref(1)
-const pageSize = 3
+const pageSize = 7
 const loading = ref(false)
 const loadingMore = ref(false)
 const labelLoading = ref(true)
@@ -83,7 +83,7 @@ async function loadCategories() {
 }
 
 async function loadDishList(isLoadMore = false) {
-  if ((hasMore.value && isLoadMore) || loading.value || loadingMore.value) {
+  if ((!hasMore.value && isLoadMore) || loading.value || loadingMore.value) {
     return
   }
 
@@ -104,8 +104,6 @@ async function loadDishList(isLoadMore = false) {
     if (response.data.pages === 0 || nextList.length < pageSize) {
       hasMore.value = false
     }
-
-    pageNo.value += 1
   } catch (error) {
     const message = error instanceof Error ? error.message : '菜谱列表加载失败'
 
@@ -133,7 +131,11 @@ async function selectCategory(categoryId: number) {
 }
 
 async function handleLoadMore() {
-  await loadDishList(true)
+  setTimeout(() => {
+    pageNo.value += 1
+    loadDishList(true)
+  },1000)
+
 }
 
 async function reloadDishList() {
@@ -195,7 +197,7 @@ onMounted(async () => {
         <div v-else-if="!dishes.length" class="panel-state">暂无相关菜谱</div>
         <nut-infinite-loading
           v-else
-          v-model="loadingMore"
+          :model-value="loadingMore"
           :has-more="hasMore"
           @load-more="handleLoadMore"
         >
@@ -336,6 +338,7 @@ onMounted(async () => {
   overflow-y: auto;
   padding: 4px 10px 18px 8px;
   background: #f6f6f6;
+  height: 95%;
 }
 
 .dish-card {

@@ -858,4 +858,10 @@ onBeforeUnmount(() => {
   background: transparent;
   border: none;
 }
+
+html, body, #app {
+  height: 100%;
+  min-height: 100%;
+  overflow: scroll;
+}
 </style>
