@@ -3,13 +3,13 @@ import { Left, PlayCircleFill } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getUserDietPlan, type UserDietMeal } from '../../api/user'
+import { getUserDietPlan, deleteUserDietPlan, type UserDietMeal } from '../../api/user'
 
 defineOptions({
   name: 'MyDiet',
 })
 
-const selectedDate = ref(new Date('2026-03-27'))
+const selectedDate = ref(new Date('2026-04-12'))
 const onChange = (val: Date) => {
   console.log(val)
 }
@@ -36,12 +36,17 @@ function navigateToDishList() {
   router.push('/dish/list')
 }
 
-function removeDish(mealKey: UserDietMeal['key'], dishId: number) {
-  meals.value = meals.value.map((meal) =>
-    meal.key === mealKey
-      ? { ...meal, dishes: meal.dishes.filter((dish) => dish.id !== dishId) }
-      : meal,
-  )
+async function removeDish(mealKey: UserDietMeal['key'], id: number) {
+
+  try {
+    const response = await deleteUserDietPlan(id);
+    meals.value = meals.value.map((meal) => meal.key === mealKey? { ...meal, dishes: meal.dishes.filter((dish) => dish.id !== id) } : meal)
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '删除饮食记录失败')
+  } finally {
+    loading.value = false
+  }
+
 }
 
 async function loadDietPlan() {
@@ -95,7 +100,7 @@ watch(selectedDate, (value, oldValue) => {
 
           <article v-for="dish in meal.dishes" :key="dish.id" class="dish-card">
             <div class="dish-cover-wrap">
-              <img :src="dish.cover" :alt="dish.name" class="dish-cover" />
+              <img :src="dish.dishImg"  class="dish-cover" />
               <div v-if="dish.hasVideo" class="dish-video">
                 <PlayCircleFill size="18" color="#ffffff" />
               </div>
@@ -106,7 +111,7 @@ watch(selectedDate, (value, oldValue) => {
               <div class="dish-tags">
                 <span v-for="tag in dish.tags" :key="tag" class="dish-tag">{{ tag }}</span>
               </div>
-              <p class="dish-meta">{{ dish.meta }}</p>
+              <p class="dish-meta">{{ dish.shareCount }}做过 | {{ dish.collectCount }}收藏 </p>
             </div>
 
             <button class="dish-remove" type="button" @click="removeDish(meal.key, dish.id)">

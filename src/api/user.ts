@@ -73,10 +73,12 @@ export interface UserNutritionPayload {
 
 export interface UserDietDish {
   id: number
+  dishId: number
   name: string
-  cover: string
+  dishImg: string
   tags: string[]
-  meta: string
+  collectCount: number
+  shareCount:number
   hasVideo?: boolean
 }
 
@@ -149,8 +151,17 @@ export function deleteUserNutritionItem(id: number) {
 
 export function getUserDietPlan(date: string) {
   return request<UserDietMeal[]>({
-    url: '/user/diet-plan',
-    method: 'get',
-    params: { date },
+    url: 'diet/detail',
+    method: 'post',
+    data: { date },
   })
 }
+
+export function deleteUserDietPlan(dietId: number) {
+  return request<null>({
+    url: 'diet/delete',
+    method: 'post',
+    data: { dietId },
+  })
+}
+

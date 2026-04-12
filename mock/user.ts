@@ -181,7 +181,13 @@ export function setupUserMock() {
             {
               key: 'breakfast',
               label: '早餐',
-              dishes: [],
+              dishes: [{
+                id: 302,
+                name: '麻婆豆腐',
+                cover: dish2,
+                tags: ['家常菜', '用料少'],
+                meta: '2做过 | 2收藏',
+              }],
             },
             {
               key: 'lunch',
