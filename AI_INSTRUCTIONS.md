@@ -103,12 +103,12 @@ cooking-front_mobile
   - [x] 菜谱搜索页面设计与实现 (已完成)
   - [x] 菜谱列表页面设计与实现 (已完成)
   - [x] 菜谱详情页面设计与实现 (已完成)
-  - [x] AI个性化菜谱生成功能设计与实现 (已完成)
+  - [ ] AI个性化菜谱生成功能设计与实现 (当前进行)
   - [x] 菜谱评分功能的设计与实现 (已完成)
   - [x] 菜谱列表页面接口对接 (已完成)
   - [x] 菜谱详细页面接口对接 (已完成)
   - [x] 饮食记录功能的设计与实现 (已完成)
-  - [ ] 菜品分享功能的设计与实现 (当前进行)
+  - [ ] 菜品分享功能的设计与实现 (已完成)
 - [ ] **阶段 3: 菜品分享模块 ** 
   - [ ] 菜品分享页面设计与实现 
   - [x] 菜品分享列表页面设计与实现 (已完成)
@@ -136,29 +136,37 @@ cooking-front_mobile
 
 ## 6. 当前执行任务 (Current Task)
 > **开发者指令：** 
-> 现在，让我们开始`菜品分享功能的设计与实现`吧
-> 1. 请在 `src/views/dish/dish-detail.vue` 和 `src/views/shares/share.vue` 页面及share.ts等文件中完成接口对接工作
-> 2. 首先需要根据效果图完成分享的页面设计，当用户点击菜谱详情页底部的 '分享' 图标，跳转到分享页面 share.vue
-> 3. 分享页面的内容，自上而下分为五个部分 
-> 4. 第一部分在顶部显示页面标题和返回图标
-> 5. 第二部分显示菜品的 菜品基本信息 （可通过复用 dish.ts 文件中的 getDishDetail  方法获取菜品详情 ）
-> 6. 第三部分显示一个图片上传组件 考虑使用NutUI自带的图片上传组件 <nut-uploader> 
-> 7. 第四部分显示文本域，让用户填写分享的内容和心得。
-> 8. 第五部分显示一个按钮，点击按钮后，调用 添加分享接口 将用户填写的分享内容保存到数据库中。
-> 9. 添加分享接口 请求地址为 post '/share/add' 接口参数为 {dishId, description, imgPath} 其中dishId为菜谱id，description为分享内容，imgPath为图片相对路径
-> 10. 文件上传接口 请求地址为 post '/file/upload' 接口参数为 {file} 其中file为文件对象 接口返回文件访问的相对路径 该接口为通用接口，你可将其封装到 src/api/system.ts 中
-> 10. 在实现接口对接工作时，使用TS对象对接口请求和返回的数据进行类型定义
-> 11. 各接口返回的数据结构如下JSON所示
+> 现在，让我们开始`AI个性化菜谱生成功能设计与实现`吧
+> 1. 请在 `(src/views/dish/dish-individual.vue)` 页面等文件中完成接口对接工作
+> 2. 首先，在菜谱详情页面。 用户点击ai小助手 然后再弹出层中，选择 用户标签。然后 用户标签id和菜谱id。 跳转到个性化菜谱页面。 
+> 3. 在个性化菜谱页面。通过调用个性化菜谱生成接口 或许AI生成的菜谱内容 
+> 4. 个性化菜谱生成接口 请求地址为 post '/individualDish/aigc' 接口参数为 {dishId, labelIds} 其中labelIds为用户在菜谱详情页选择的标签id，dishId为菜谱id
+> 5. 个性化菜谱生成接口 的结果为流式响应 (Java中接口的返回类型是Flux<String>) 其内容 为JSON Line 具体内容如下所示。要求能正确解析JSON Line格式的数据并展示到页面。
+> 5. 要求在接口返回结果前 使用骨架屏效果 对待加载区域填充灰色的占位图 进行过度 
+> 6. 各接口返回的数据结构如下JSON所示
 
 
-```json5
+```text
 
 // 文件上传接口响应示例
-{
-  "msg":"success",
-  "code":0,
-  "data": "/UploadFile/2023/05/05/123.png"
-}
+
+
+{"type":"start","status":"success"}
+{"type":"base","data":{"dishName":"紫菜蛋花汤","take_times":"15分钟"}}
+{"type":"material","data":{"name":"紫菜","dosage":"5克","deal":"温水泡发10分钟，挤干水分"}}
+{"type":"material","data":{"name":"鸡蛋","dosage":"1个","deal":"打散成均匀蛋液"}}
+{"type":"material","data":{"name":"葱花","dosage":"5克","deal":"新鲜小葱切细末"}}
+{"type":"flavor","data":{"name":"盐","dosage":"1克"}}
+{"type":"flavor","data":{"name":"姜汁","dosage":"3滴"}}
+{"type":"flavor","data":{"name":"白胡椒粉","dosage":"少许"}}
+{"type":"step","data":{"stepNumber":1,"instruction":"锅中加入600毫升清水，放入姜汁，大火烧至微沸"}}
+{"type":"step","data":{"stepNumber":2,"instruction":"下泡发并挤干的紫菜，中火煮2分钟"}}
+{"type":"step","data":{"stepNumber":3,"instruction":"转最小火，用筷子搅出漩涡，缓慢淋入蛋液，静置5秒不搅动"}}
+{"type":"step","data":{"stepNumber":4,"instruction":"加盐、白胡椒粉，轻轻搅匀，煮30秒"}}
+{"type":"step","data":{"stepNumber":5,"instruction":"关火前撒葱花，利用余热焖30秒"}}
+{"type":"tips","data":"感冒发烧期间宜清淡温热，避免醋刺激胃黏膜；姜汁助驱寒，白胡椒粉暖胃散寒；蛋液需离火淋入以保嫩滑；全程不加味精、鸡精。"}
+{"type":"done","status":"success"}
+
 
 ```
 

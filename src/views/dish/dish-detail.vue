@@ -887,6 +887,13 @@ function toggleLabel(labelId: number) {
 }
 
 function handleGeneratePlan() {
+  const dishId = getDishId()
+
+  if (!dishId) {
+    showToast.text('菜谱信息不存在')
+    return
+  }
+
   const selectedNames = aiLabels.value
     .filter((label) => selectedLabelIds.value.includes(label.id))
     .map((label) => label.labelName)
@@ -896,6 +903,8 @@ function handleGeneratePlan() {
   router.push({
     name: 'DishIndividual',
     query: {
+      dishId: String(dishId),
+      labelIds: selectedLabelIds.value.join(','),
       labelNames: selectedNames.join('|'),
     },
   })

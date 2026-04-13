@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { Category, Horizontal, Left, Loading1, More } from '@nutui/icons-vue'
-import { computed } from 'vue'
+import { showToast } from '@nutui/nutui'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import {
+  streamIndividualDish,
+  type IndividualDishBaseInfo,
+  type IndividualDishFlavor,
+  type IndividualDishMaterial,
+  type IndividualDishStep,
+  type IndividualDishStreamEvent,
+} from '../../api/dish'
 
 defineOptions({
   name: 'DishIndividual',
@@ -20,31 +29,179 @@ const selectedLabels = computed(() => {
   return raw.split('|').filter(Boolean)
 })
 
-const sections = [
-  {
-    title: '一、主料清单',
-    items: [
-      '鸡蛋：2个。打入碗中，加少许盐（分量外，约1g）和5ml温开水（半冷水），充分搅打至蛋液均匀起泡，静置30秒使气泡稳定。',
-      '不辣青椒（如柿子椒/甜椒）：去蒂、去籽，洗净后切成菱形片或细丝；优先选用表皮光滑、肉厚色亮的绿色或红色甜椒，确保无辣味。',
-    ],
-  },
-  {
-    title: '二、调料清单',
-    items: [
-      '食用油：25ml（约2汤匙），用于滑蛋与炒制。',
-      '盐：2g（约1/3茶匙），全部用于合炒阶段；蛋液中不再额外加盐，避免钠摄入过高影响感冒恢复。',
-      '姜末：3g（约1小勺，新鲜老姜切极细末），提升香气并增强暖胃感。',
-    ],
-  },
-  {
-    title: '三、制作步骤',
-    items: [
-      '准备姜末，老姜去皮，用刀背拍松后切极细末（可助发汗解表、缓解感冒症状，且温和不刺激）。',
-      '热锅温油：锅烧至微热（约120°C，手悬于锅上方感温热即可），倒入食用油，转中小火，下姜末煸炒5-8秒至香气微出，避免炒焦。',
-      '倒入青椒快速翻炒，保持脆嫩口感；再淋入蛋液，待边缘微凝时轻推成大块，保留滑嫩质地。',
-    ],
-  },
-]
+type RenderSection = {
+  title: string
+  items: string[]
+}
+
+const dishId = computed(() => Number(route.query.dishId || 0))
+const labelIds = computed(() => {
+  const raw = route.query.labelIds
+
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return []
+  }
+
+  return raw
+    .split(',')
+    .map((value) => Number(value))
+    .filter((value) => !Number.isNaN(value) && value > 0)
+})
+
+const baseInfo = ref<IndividualDishBaseInfo | null>(null)
+const materials = ref<IndividualDishMaterial[]>([])
+const flavors = ref<IndividualDishFlavor[]>([])
+const steps = ref<IndividualDishStep[]>([])
+const tips = ref('')
+const loading = ref(true)
+const streaming = ref(false)
+const streamStarted = ref(false)
+const streamFinished = ref(false)
+const errorMessage = ref('')
+const hasReceivedContent = computed(
+  () =>
+    Boolean(baseInfo.value) ||
+    materials.value.length > 0 ||
+    flavors.value.length > 0 ||
+    steps.value.length > 0 ||
+    Boolean(tips.value),
+)
+const statusText = computed(() => {
+  if (errorMessage.value) {
+    return errorMessage.value
+  }
+
+  if (streamFinished.value) {
+    return '已基于你的饮食偏好和身体状态，生成个性化菜谱，你可以参考本次生成结果与您的实际情况进行烹饪。'
+  }
+
+  return '正在基于你的饮食偏好和身体状态，为你生成个性化的菜谱方案...'
+})
+const sections = computed<RenderSection[]>(() => {
+  const nextSections: RenderSection[] = []
+
+  if (materials.value.length) {
+    nextSections.push({
+      title: '一、主料清单',
+      items: materials.value.map(
+        (item) => `${item.name}：${item.dosage}${item.deal ? `。${item.deal}` : ''}`,
+      ),
+    })
+  }
+
+  if (flavors.value.length) {
+    nextSections.push({
+      title: '二、调料清单',
+      items: flavors.value.map((item) => `${item.name}：${item.dosage}`),
+    })
+  }
+
+  if (steps.value.length) {
+    nextSections.push({
+      title: '三、制作步骤',
+      items: [...steps.value]
+        .sort((left, right) => left.step_number - right.step_number)
+        .map((item) => item.instruction),
+    })
+  }
+
+  if (tips.value) {
+    nextSections.push({
+      title: '四、小贴士',
+      items: [tips.value],
+    })
+  }
+
+  return nextSections
+})
+
+let streamController: AbortController | null = null
+
+function applyStreamEvent(event: IndividualDishStreamEvent) {
+  streamStarted.value = true
+
+  switch (event.type) {
+    case 'start':
+      errorMessage.value = ''
+      return
+    case 'base':
+      baseInfo.value = event.data
+      return
+    case 'material':
+      materials.value = [...materials.value, event.data]
+      return
+    case 'flavor':
+      flavors.value = [...flavors.value, event.data]
+      return
+    case 'step':
+      steps.value = [...steps.value, event.data].sort(
+        (left, right) => left.step_number - right.step_number,
+      )
+      return
+    case 'tips':
+      tips.value = event.data
+      return
+    case 'done':
+      streamFinished.value = true
+      streaming.value = false
+      loading.value = false
+      return
+    case 'error':
+      errorMessage.value = event.message || '个性化菜谱生成失败'
+      streaming.value = false
+      loading.value = false
+      return
+  }
+}
+
+async function loadIndividualDish() {
+  if (!dishId.value) {
+    loading.value = false
+    errorMessage.value = '缺少菜谱信息，暂时无法生成个性化菜谱'
+    return
+  }
+
+  streamController?.abort()
+  streamController = new AbortController()
+  baseInfo.value = null
+  materials.value = []
+  flavors.value = []
+  steps.value = []
+  tips.value = ''
+  errorMessage.value = ''
+  loading.value = true
+  streaming.value = true
+  streamStarted.value = false
+  streamFinished.value = false
+
+  try {
+    await streamIndividualDish(
+      {
+        dishId: dishId.value,
+        labelIds: labelIds.value,
+      },
+      {
+        signal: streamController.signal,
+        onEvent: applyStreamEvent,
+      },
+    )
+
+    if (!streamFinished.value) {
+      streamFinished.value = true
+      streaming.value = false
+      loading.value = false
+    }
+  } catch (error) {
+    if (streamController.signal.aborted) {
+      return
+    }
+
+    errorMessage.value = error instanceof Error ? error.message : '个性化菜谱生成失败'
+    streaming.value = false
+    loading.value = false
+    showToast.fail(errorMessage.value)
+  }
+}
 
 function goBack() {
   if (window.history.length > 1) {
@@ -54,6 +211,18 @@ function goBack() {
 
   router.push('/dish/detail/1')
 }
+
+function buildSkeletonRows(count: number) {
+  return Array.from({ length: count }, (_, index) => index)
+}
+
+onMounted(() => {
+  void loadIndividualDish()
+})
+
+onBeforeUnmount(() => {
+  streamController?.abort()
+})
 </script>
 
 <template>
@@ -84,23 +253,59 @@ function goBack() {
     </header>
 
     <main class="page-content">
-      <section class="status-card">
+      <section class="status-card" :class="{ 'status-card-error': errorMessage }">
         <div class="status-icon">
-          <Loading1 size="16" color="#ff7d55" />
+          <Loading1 v-if="!errorMessage && !streamFinished" size="16" color="#ff7d55" />
+          <Category v-else size="16" :color="errorMessage ? '#ff5a5a' : '#ff9f43'" />
         </div>
-        <p>正在基于你的饮食偏好和身体状态，为你生成个性化的菜谱方案...</p>
+        <div class="status-copy">
+          <p>{{ statusText }}</p>
+<!--          <span v-if="baseInfo?.take_times && !errorMessage" class="status-meta">
+            预计用时：{{ baseInfo.take_times }}
+          </span>-->
+        </div>
       </section>
 
       <section class="content-card">
-        <article v-for="section in sections" :key="section.title" class="plan-section">
-          <h2>{{ section.title }}</h2>
-          <ol>
-            <li v-for="(item, index) in section.items" :key="item">
-              <span class="item-index">{{ index + 1 }}.</span>
-              <span class="item-text">{{ item }}</span>
-            </li>
-          </ol>
-        </article>
+        <template v-if="loading && !hasReceivedContent">
+          <article class="plan-section plan-section-skeleton">
+            <div class="skeleton-title" />
+            <div v-for="row in buildSkeletonRows(3)" :key="`material-${row}`" class="skeleton-line" />
+          </article>
+          <article class="plan-section plan-section-skeleton">
+            <div class="skeleton-title skeleton-title-short" />
+            <div v-for="row in buildSkeletonRows(2)" :key="`flavor-${row}`" class="skeleton-line skeleton-line-short" />
+          </article>
+          <article class="plan-section plan-section-skeleton">
+            <div class="skeleton-title" />
+            <div v-for="row in buildSkeletonRows(4)" :key="`step-${row}`" class="skeleton-line" />
+          </article>
+        </template>
+
+        <template v-else-if="hasReceivedContent">
+          <section v-if="baseInfo" class="dish-summary">
+            <h2>{{ baseInfo.dish_name }}</h2>
+            <p v-if="baseInfo.take_times">预计用时 {{ baseInfo.take_times }}</p>
+          </section>
+
+          <article v-for="section in sections" :key="section.title" class="plan-section">
+            <h2>{{ section.title }}</h2>
+            <ol>
+              <li v-for="(item, index) in section.items" :key="`${section.title}-${index}`">
+                <span class="item-index">{{ index + 1 }}.</span>
+                <span class="item-text">{{ item }}</span>
+              </li>
+            </ol>
+          </article>
+        </template>
+
+        <div v-else class="empty-state">
+          {{ errorMessage || '暂未生成个性化菜谱内容' }}
+        </div>
+
+        <div v-if="streaming && hasReceivedContent" class="streaming-hint">
+          正在继续补充内容...
+        </div>
       </section>
     </main>
   </section>
@@ -198,6 +403,10 @@ function goBack() {
   padding: 16px 14px;
 }
 
+.status-card-error {
+  border: 1px solid rgba(255, 90, 90, 0.12);
+}
+
 .status-icon {
   display: flex;
   align-items: center;
@@ -207,6 +416,10 @@ function goBack() {
   margin-top: 2px;
 }
 
+.status-copy {
+  flex: 1;
+}
+
 .status-card p {
   margin: 0;
   color: #3b3b3b;
@@ -214,9 +427,33 @@ function goBack() {
   line-height: 1.5;
 }
 
+.status-meta {
+  display: inline-block;
+  margin-top: 6px;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
 .content-card {
   margin-top: 12px;
   padding: 18px 14px 24px;
+}
+
+.dish-summary {
+  padding-bottom: 8px;
+}
+
+.dish-summary h2 {
+  margin: 0;
+  color: #171717;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.dish-summary p {
+  margin: 6px 0 0;
+  color: #9ca3af;
+  font-size: 13px;
 }
 
 .plan-section + .plan-section {
@@ -255,5 +492,63 @@ function goBack() {
 
 .item-text {
   flex: 1;
+}
+
+.plan-section-skeleton + .plan-section-skeleton {
+  margin-top: 24px;
+}
+
+.skeleton-title,
+.skeleton-line {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #efefef 25%, #f8f8f8 37%, #efefef 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+.skeleton-title {
+  width: 42%;
+  height: 22px;
+  margin-bottom: 16px;
+}
+
+.skeleton-title-short {
+  width: 34%;
+}
+
+.skeleton-line {
+  height: 16px;
+}
+
+.skeleton-line + .skeleton-line {
+  margin-top: 14px;
+}
+
+.skeleton-line-short {
+  width: 78%;
+}
+
+.empty-state {
+  padding: 12px 0 4px;
+  color: #9ca3af;
+  font-size: 14px;
+  text-align: center;
+}
+
+.streaming-hint {
+  margin-top: 18px;
+  color: #ff8a47;
+  font-size: 13px;
+  text-align: center;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
 }
 </style>

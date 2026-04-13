@@ -287,6 +287,126 @@ export interface DishPage {
   pages: number
 }
 
+export interface IndividualDishGeneratePayload {
+  dishId: number
+  labelIds: number[]
+}
+
+export interface IndividualDishBaseInfo {
+  dish_name: string
+  take_times: string
+}
+
+export interface IndividualDishMaterial {
+  name: string
+  dosage: string
+  deal: string
+}
+
+export interface IndividualDishFlavor {
+  name: string
+  dosage: string
+}
+
+export interface IndividualDishStep {
+  step_number: number
+  instruction: string
+}
+
+type IndividualDishStreamEventMap = {
+  start: { type: 'start'; status: string }
+  base: { type: 'base'; data: IndividualDishBaseInfo }
+  material: { type: 'material'; data: IndividualDishMaterial }
+  flavor: { type: 'flavor'; data: IndividualDishFlavor }
+  step: { type: 'step'; data: IndividualDishStep }
+  tips: { type: 'tips'; data: string }
+  done: { type: 'done'; status: string }
+  error: { type: 'error'; status: string; name?: string; message: string }
+}
+
+export type IndividualDishStreamEvent =
+  IndividualDishStreamEventMap[keyof IndividualDishStreamEventMap]
+
+export interface IndividualDishStreamHandlers {
+  onEvent?: (event: IndividualDishStreamEvent) => void
+  onError?: (error: Error) => void
+  signal?: AbortSignal
+}
+
+function parseIndividualDishStreamEvent(line: string): IndividualDishStreamEvent {
+  const parsed = JSON.parse(line) as IndividualDishStreamEvent
+
+  if (!parsed || typeof parsed !== 'object' || typeof parsed.type !== 'string') {
+    throw new Error('个性化菜谱数据格式错误')
+  }
+
+  return parsed
+}
+
+export async function streamIndividualDish(
+  payload: IndividualDishGeneratePayload,
+  handlers: IndividualDishStreamHandlers = {},
+) {
+  const token = localStorage.getItem('token')
+  const response = await fetch('/api/individualDish/aigc', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: JSON.stringify(payload),
+    signal: handlers.signal,
+  })
+
+  if (!response.ok) {
+    throw new Error(`个性化菜谱生成失败(${response.status})`)
+  }
+
+  if (!response.body) {
+    throw new Error('当前浏览器不支持流式响应')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+
+      if (done) {
+        break
+      }
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split(/\r?\n/)
+      buffer = lines.pop() ?? ''
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim()
+
+        if (!line) {
+          continue
+        }
+
+        const event = parseIndividualDishStreamEvent(line)
+        handlers.onEvent?.(event)
+      }
+    }
+
+    const finalChunk = `${buffer}${decoder.decode()}`.trim()
+
+    if (finalChunk) {
+      handlers.onEvent?.(parseIndividualDishStreamEvent(finalChunk))
+    }
+  } catch (error) {
+    const nextError = error instanceof Error ? error : new Error('个性化菜谱生成失败')
+    handlers.onError?.(nextError)
+    throw nextError
+  } finally {
+    reader.releaseLock()
+  }
+}
 
 export function getDishPage(pageNo: number, pageSize: number, search?: string, labelId?: number) {
   return request<DishPage>({
