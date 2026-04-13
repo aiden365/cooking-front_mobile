@@ -9,6 +9,7 @@ import {
 } from '../../api/dish'
 import {getUserDietPlan} from "../../api/user";
 import {getSystemLabels, SystemLabel} from "../../api/label";
+import { useRoute, useRouter } from 'vue-router'
 defineOptions({
   name: 'Index',
 })
@@ -19,6 +20,8 @@ export interface PlanItem {
   value: string
 }
 
+const router = useRouter()
+const route = useRoute()
 
 const keyword = ref('')
 const banners = ref<string[]>([
@@ -192,14 +195,15 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="top-panel">
-      <div class="search-shell">
+      <div class="search-shell" >
         <nut-searchbar
           v-model="keyword"
           placeholder="想吃点什么呀？"
           shape="round"
           class="home-searchbar"
+          @click="() => router.push({ name: 'DishSearch', query: { keyword } })"
         >
-          <template #leftin>
+          <template #leftin >
             <Search2 color="#9ca3af" />
           </template>
         </nut-searchbar>

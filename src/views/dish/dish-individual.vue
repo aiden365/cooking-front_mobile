@@ -3,6 +3,7 @@ import { Category, Horizontal, Left, Loading1, More } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AiRecipeLauncher from '../../components/AiRecipeLauncher.vue'
 import {
   streamIndividualDish,
   type IndividualDishBaseInfo,
@@ -100,7 +101,7 @@ const sections = computed<RenderSection[]>(() => {
     nextSections.push({
       title: '三、制作步骤',
       items: [...steps.value]
-        .sort((left, right) => left.step_number - right.step_number)
+        .sort((left, right) => left.stepNumber - right.stepNumber)
         .map((item) => item.instruction),
     })
   }
@@ -135,7 +136,7 @@ function applyStreamEvent(event: IndividualDishStreamEvent) {
       return
     case 'step':
       steps.value = [...steps.value, event.data].sort(
-        (left, right) => left.step_number - right.step_number,
+        (left, right) => left.stepNumber - right.stepNumber,
       )
       return
     case 'tips':
@@ -223,6 +224,20 @@ onMounted(() => {
 onBeforeUnmount(() => {
   streamController?.abort()
 })
+
+async function handleRegenerate(payload: { labelIds: number[]; labelNames: string[] }) {
+  await router.replace({
+    name: 'DishIndividual',
+    query: {
+      ...route.query,
+      dishId: dishId.value ? String(dishId.value) : '',
+      labelIds: payload.labelIds.join(','),
+      labelNames: payload.labelNames.join('|'),
+    },
+  })
+
+  void loadIndividualDish()
+}
 </script>
 
 <template>
@@ -284,8 +299,8 @@ onBeforeUnmount(() => {
 
         <template v-else-if="hasReceivedContent">
           <section v-if="baseInfo" class="dish-summary">
-            <h2>{{ baseInfo.dish_name }}</h2>
-            <p v-if="baseInfo.take_times">预计用时 {{ baseInfo.take_times }}</p>
+            <h2>{{ baseInfo.dishName }}</h2>
+            <p v-if="baseInfo.takeTimes">预计用时 {{ baseInfo.takeTimes }}</p>
           </section>
 
           <article v-for="section in sections" :key="section.title" class="plan-section">
@@ -308,6 +323,8 @@ onBeforeUnmount(() => {
         </div>
       </section>
     </main>
+
+    <AiRecipeLauncher :initial-selected-ids="labelIds" @generate="handleRegenerate" />
   </section>
 </template>
 

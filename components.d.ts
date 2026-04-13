@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AiRecipeLauncher: typeof import('./src/components/AiRecipeLauncher.vue')['default']
     IconMdiAccountOutline: typeof import('~icons/mdi/account-outline')['default']
     IconMdiAccountPlusOutline: typeof import('~icons/mdi/account-plus-outline')['default']
     IconMdiChefHat: typeof import('~icons/mdi/chef-hat')['default']

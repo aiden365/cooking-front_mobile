@@ -195,7 +195,12 @@ onMounted(() => {
 <style scoped>
 .search-page {
   min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   background: #ffffff;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
 .search-header {

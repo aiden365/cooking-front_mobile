@@ -15,6 +15,7 @@ const showTabBar = computed(() =>
     'DishDetail',
     'DishIndividual',
     'ShareCreate',
+    'DishSearch',
     'Login',
     'Register',
     'ForgotPassword',

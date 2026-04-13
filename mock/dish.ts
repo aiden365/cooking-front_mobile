@@ -166,7 +166,7 @@ export function setupDishMock() {
     },
   }))
 
-  Mock.mock(/\/api\/dishes\/search(\?.*)?$/, 'get', ({ url }) => {
+  Mock.mock(/\/api\/dishe\/search(\?.*)?$/, 'post', ({ url }) => {
     const currentUrl = new URL(url, 'https://mock.local')
     const keyword = currentUrl.searchParams.get('keyword')?.trim() || ''
     const sortBy = currentUrl.searchParams.get('sortBy') || 'comprehensive'

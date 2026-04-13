@@ -10,8 +10,9 @@ import {
   TriangleDown,
 } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AiRecipeLauncher from '../../components/AiRecipeLauncher.vue'
 import {
   addDishCollect,
   getDishAppraiseTotal,
@@ -33,7 +34,6 @@ import {
   type DishMaterialItem,
   type DishStepItem,
 } from '../../api/dish'
-import { getSystemLabels, getUserLabels, type SystemLabel } from '../../api/label'
 import { addUserDietPlan, getUserDietPlan, type UserDietMeal } from '../../api/user'
 
 defineOptions({
@@ -104,18 +104,9 @@ const favoriteLoading = ref(false)
 const submittingComment = ref(false)
 const errorMessage = ref('')
 const showAllSteps = ref(false)
-const showAIPanel = ref(false)
 const showCommentPopup = ref(false)
 const showScorePopup = ref(false)
 const showDietPopup = ref(false)
-const aiButtonTop = ref(360)
-const isDragging = ref(false)
-const movedDuringDrag = ref(false)
-const aiLabels = ref<SystemLabel[]>([])
-const selectedLabelIds = ref<number[]>([])
-const aiLoading = ref(false)
-const aiLoaded = ref(false)
-const aiErrorMessage = ref('')
 const commentDraft = ref('')
 const replyParentId = ref(0)
 const replyTargetName = ref('')
@@ -142,8 +133,6 @@ const selectedDietOrder = ref<0 | 1 | 2 | 3>(0)
 const dietMeals = ref<UserDietMeal[]>([])
 const dietPlanCache = ref<Record<string, UserDietMeal[]>>({})
 
-let pointerStartY = 0
-let buttonStartTop = 0
 let dietPlanRequestId = 0
 
 const currentUserId = getCurrentUserId()
@@ -802,91 +791,7 @@ async function submitComment() {
   }
 }
 
-function clampButtonTop(nextTop: number) {
-  const viewportHeight = window.innerHeight
-  const minTop = 120
-  const maxTop = viewportHeight - 220
-
-  return Math.min(Math.max(nextTop, minTop), maxTop)
-}
-
-function handlePointerMove(event: PointerEvent) {
-  if (!isDragging.value) {
-    return
-  }
-
-  const deltaY = event.clientY - pointerStartY
-
-  if (Math.abs(deltaY) > 4) {
-    movedDuringDrag.value = true
-  }
-
-  aiButtonTop.value = clampButtonTop(buttonStartTop + deltaY)
-}
-
-function stopDrag() {
-  isDragging.value = false
-  window.removeEventListener('pointermove', handlePointerMove)
-  window.removeEventListener('pointerup', stopDrag)
-}
-
-function handlePointerDown(event: PointerEvent) {
-  pointerStartY = event.clientY
-  buttonStartTop = aiButtonTop.value
-  movedDuringDrag.value = false
-  isDragging.value = true
-
-  window.addEventListener('pointermove', handlePointerMove)
-  window.addEventListener('pointerup', stopDrag)
-}
-
-function handleFloatClick() {
-  if (movedDuringDrag.value) {
-    movedDuringDrag.value = false
-    return
-  }
-
-  showAIPanel.value = true
-  void loadAILabels()
-}
-
-async function loadAILabels() {
-  if (aiLoaded.value || aiLoading.value) {
-    return
-  }
-
-  aiLoading.value = true
-  aiErrorMessage.value = ''
-
-  try {
-    const [systemResponse, userResponse] = await Promise.all([
-      getSystemLabels({
-        pageNum: 1,
-        pageSize: -1,
-      }),
-      getUserLabels(),
-    ])
-
-    aiLabels.value = systemResponse.data.records
-    selectedLabelIds.value = userResponse.data
-    aiLoaded.value = true
-  } catch (error) {
-    aiErrorMessage.value = error instanceof Error ? error.message : '标签加载失败'
-  } finally {
-    aiLoading.value = false
-  }
-}
-
-function toggleLabel(labelId: number) {
-  if (selectedLabelIds.value.includes(labelId)) {
-    selectedLabelIds.value = selectedLabelIds.value.filter((id) => id !== labelId)
-    return
-  }
-
-  selectedLabelIds.value = [...selectedLabelIds.value, labelId]
-}
-
-function handleGeneratePlan() {
+function handleGeneratePlan(payload: { labelIds: number[]; labelNames: string[] }) {
   const dishId = getDishId()
 
   if (!dishId) {
@@ -894,18 +799,12 @@ function handleGeneratePlan() {
     return
   }
 
-  const selectedNames = aiLabels.value
-    .filter((label) => selectedLabelIds.value.includes(label.id))
-    .map((label) => label.labelName)
-
-  showAIPanel.value = false
-
   router.push({
     name: 'DishIndividual',
     query: {
       dishId: String(dishId),
-      labelIds: selectedLabelIds.value.join(','),
-      labelNames: selectedNames.join('|'),
+      labelIds: payload.labelIds.join(','),
+      labelNames: payload.labelNames.join('|'),
     },
   })
 }
@@ -927,12 +826,7 @@ function goToSharePage() {
 }
 
 onMounted(() => {
-  aiButtonTop.value = clampButtonTop(window.innerHeight * 0.52)
   void loadDishData()
-})
-
-onBeforeUnmount(() => {
-  stopDrag()
 })
 </script>
 
@@ -1113,19 +1007,7 @@ onBeforeUnmount(() => {
         </article>
       </section>
 
-      <button
-        class="ai-float-button"
-        type="button"
-        :style="{ top: `${aiButtonTop}px` }"
-        @pointerdown="handlePointerDown"
-        @click="handleFloatClick"
-      >
-        <span class="ai-float-glow" />
-        <span class="ai-float-icon">
-          <icon-mdi-robot-excited-outline />
-        </span>
-        <span class="ai-float-text">AI小助手</span>
-      </button>
+      <AiRecipeLauncher @generate="handleGeneratePlan" />
     </template>
 
     <footer v-if="detail" class="detail-actionbar">
@@ -1308,30 +1190,6 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <div v-if="showAIPanel" class="ai-popup-mask" @click="showAIPanel = false" />
-    <section v-if="showAIPanel" class="ai-popup">
-      <div class="ai-popup-handle" />
-      <h3 class="ai-popup-title">AI个性化菜谱</h3>
-      <div class="ai-popup-body">
-        <p class="ai-popup-desc">选择你的饮食偏好，生成更贴合您喜好的菜谱方案。</p>
-
-        <div v-if="aiLoading" class="ai-state">标签加载中...</div>
-        <div v-else-if="aiErrorMessage" class="ai-state">{{ aiErrorMessage }}</div>
-        <div v-else class="ai-label-scroll">
-          <button
-            v-for="label in aiLabels"
-            :key="label.id"
-            type="button"
-            class="ai-label-chip"
-            :class="{ 'ai-label-chip-active': selectedLabelIds.includes(label.id) }"
-            @click="toggleLabel(label.id)"
-          >
-            {{ label.labelName }}
-          </button>
-        </div>
-      </div>
-      <button type="button" class="ai-generate-button" @click="handleGeneratePlan">生成</button>
-    </section>
   </section>
 </template>
 
@@ -1734,8 +1592,7 @@ onBeforeUnmount(() => {
 
 .comment-popup-mask,
 .score-popup-mask,
-.diet-popup-mask,
-.ai-popup-mask {
+.diet-popup-mask {
   position: fixed;
   inset: 0;
   z-index: 39;
@@ -1744,8 +1601,7 @@ onBeforeUnmount(() => {
 
 .comment-popup,
 .score-popup,
-.diet-popup,
-.ai-popup {
+.diet-popup {
   position: fixed;
   right: 0;
   bottom: 0;
@@ -1759,8 +1615,7 @@ onBeforeUnmount(() => {
 
 .comment-popup-handle,
 .score-popup-handle,
-.diet-popup-handle,
-.ai-popup-handle {
+.diet-popup-handle {
   width: 42px;
   height: 5px;
   margin: 0 auto;
@@ -1769,8 +1624,7 @@ onBeforeUnmount(() => {
 }
 
 .comment-popup-title,
-.score-popup-title,
-.ai-popup-title {
+.score-popup-title {
   margin: 16px 0 0;
   color: #111827;
   font-size: 18px;
@@ -2115,130 +1969,4 @@ onBeforeUnmount(() => {
   opacity: 0.72;
 }
 
-.ai-popup {
-  display: flex;
-  flex-direction: column;
-  height: 52vh;
-  min-height: 320px;
-}
-
-.ai-popup-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  padding-top: 14px;
-}
-
-.ai-popup-desc {
-  margin: 0 0 12px;
-  color: #6b7280;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.ai-label-scroll {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  gap: 12px 10px;
-  align-content: flex-start;
-  overflow-y: auto;
-  padding-bottom: 12px;
-  scrollbar-width: none;
-}
-
-.ai-label-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.ai-label-chip {
-  padding: 10px 16px;
-  color: #4b5563;
-  font-size: 14px;
-  font-weight: 600;
-  background: #f3f4f6;
-  border: 1px solid transparent;
-  border-radius: 999px;
-}
-
-.ai-label-chip-active {
-  color: rgb(255, 111, 97);
-  background: rgba(255, 111, 97, 0.1);
-  border-color: rgba(255, 111, 97, 0.25);
-}
-
-.ai-state {
-  flex: 1;
-  color: #9ca3af;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.ai-generate-button {
-  width: 100%;
-  height: 46px;
-  margin-top: 12px;
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 700;
-  background: linear-gradient(135deg, rgb(255, 111, 97), rgb(255, 140, 110));
-  border: none;
-  border-radius: 14px;
-}
-
-.ai-float-button {
-  position: fixed;
-  right: 10px;
-  z-index: 34;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  width: 66px;
-  height: 74px;
-  padding: 0;
-  color: #ffffff;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03)),
-    linear-gradient(160deg, #ff7e71 0%, #ff7e71 52%, #ff7e71 100%);
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  border-radius: 22px;
-  box-shadow:
-    0 10px 30px rgba(45, 124, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
-  touch-action: none;
-}
-
-.ai-float-glow {
-  position: absolute;
-  top: -12px;
-  right: -10px;
-  width: 48px;
-  height: 48px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0, rgba(255, 255, 255, 0) 72%);
-  opacity: 0.9;
-}
-
-.ai-float-icon {
-  position: relative;
-  z-index: 1;
-  display: block;
-  line-height: 1;
-  font-size: 24px;
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.35));
-}
-
-.ai-float-text {
-  position: relative;
-  z-index: 1;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  opacity: 0.96;
-}
 </style>

@@ -140,11 +140,11 @@ export function getRecommendDishes() {
 
 
 
-export function getDishSearchList(params: DishSearchParams) {
+export function getDishSearchList(data: DishSearchParams) {
   return request<{ list: DishItem[]; total: number; page: number; pageSize: number }>({
-    url: '/dishes/search',
-    method: 'get',
-    params,
+    url: '/dishe/search',
+    method: 'post',
+    data,
   })
 }
 
@@ -287,14 +287,21 @@ export interface DishPage {
   pages: number
 }
 
+type IndividualDishErrorResponse = {
+  code?: number
+  message?: string
+  msg?: string
+  success?: boolean
+}
+
 export interface IndividualDishGeneratePayload {
   dishId: number
   labelIds: number[]
 }
 
 export interface IndividualDishBaseInfo {
-  dish_name: string
-  take_times: string
+  dishName: string
+  takeTimes: string
 }
 
 export interface IndividualDishMaterial {
@@ -309,7 +316,7 @@ export interface IndividualDishFlavor {
 }
 
 export interface IndividualDishStep {
-  step_number: number
+  stepNumber: number
   instruction: string
 }
 
@@ -334,13 +341,26 @@ export interface IndividualDishStreamHandlers {
 }
 
 function parseIndividualDishStreamEvent(line: string): IndividualDishStreamEvent {
-  const parsed = JSON.parse(line) as IndividualDishStreamEvent
+  const parsed = JSON.parse(line) as IndividualDishStreamEvent | IndividualDishErrorResponse
 
-  if (!parsed || typeof parsed !== 'object' || typeof parsed.type !== 'string') {
+  if (!parsed || typeof parsed !== 'object') {
     throw new Error('个性化菜谱数据格式错误')
   }
 
-  return parsed
+  if ('type' in parsed && typeof parsed.type === 'string') {
+    return parsed as IndividualDishStreamEvent
+  }
+
+  if ('code' in parsed || 'message' in parsed || 'msg' in parsed) {
+    const message =
+      (typeof parsed.message === 'string' && parsed.message) ||
+      (typeof parsed.msg === 'string' && parsed.msg) ||
+      '个性化菜谱生成失败'
+
+    throw new Error(message)
+  }
+
+  throw new Error('个性化菜谱数据格式错误')
 }
 
 export async function streamIndividualDish(
@@ -360,6 +380,18 @@ export async function streamIndividualDish(
 
   if (!response.ok) {
     throw new Error(`个性化菜谱生成失败(${response.status})`)
+  }
+
+  const contentType = response.headers.get('content-type') || ''
+
+  if (contentType.includes('application/json')) {
+    const errorBody = (await response.json()) as IndividualDishErrorResponse
+    const message =
+      (typeof errorBody.message === 'string' && errorBody.message) ||
+      (typeof errorBody.msg === 'string' && errorBody.msg) ||
+      '个性化菜谱生成失败'
+
+    throw new Error(message)
   }
 
   if (!response.body) {
