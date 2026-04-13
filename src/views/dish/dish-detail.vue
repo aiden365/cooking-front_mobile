@@ -901,6 +901,22 @@ function handleGeneratePlan() {
   })
 }
 
+function goToSharePage() {
+  const dishId = getDishId()
+
+  if (!dishId) {
+    showToast.text('菜谱信息不存在')
+    return
+  }
+
+  router.push({
+    name: 'ShareCreate',
+    query: {
+      dishId: String(dishId),
+    },
+  })
+}
+
 onMounted(() => {
   aiButtonTop.value = clampButtonTop(window.innerHeight * 0.52)
   void loadDishData()
@@ -1115,7 +1131,7 @@ onBeforeUnmount(() => {
         <Edit size="18" color="#8b8b8b" />
         <span>记录</span>
       </button>
-      <button type="button" class="action-item">
+      <button type="button" class="action-item" @click="goToSharePage">
         <ShareN size="18" color="#8b8b8b" />
         <span>分享</span>
       </button>

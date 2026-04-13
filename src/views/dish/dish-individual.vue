@@ -109,7 +109,12 @@ function goBack() {
 <style scoped>
 .individual-page {
   min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   background: #f7f7f7;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
 .page-header {

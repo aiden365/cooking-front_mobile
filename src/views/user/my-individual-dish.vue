@@ -6,5 +6,5 @@ defineOptions({
 </script>
 
 <template>
-  <h1>个性化菜谱</h1>     
+  <h1>个性化菜谱</h1>
 </template>

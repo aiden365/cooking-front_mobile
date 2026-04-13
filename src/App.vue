@@ -14,6 +14,7 @@ const showTabBar = computed(() =>
   ![
     'DishDetail',
     'DishIndividual',
+    'ShareCreate',
     'Login',
     'Register',
     'ForgotPassword',

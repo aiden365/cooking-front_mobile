@@ -52,6 +52,7 @@ export interface DishDetail {
 export interface DishDetailData {
   id: number
   name: string
+  imgPath: string
   takeTimes: string
   viewCount: number
   collectCount: number

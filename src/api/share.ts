@@ -6,6 +6,12 @@ export interface SharePageReq {
   dishName?: string
 }
 
+export interface ShareAddPayload {
+  dishId: number
+  description: string
+  imgPath: string
+}
+
 export interface ShareListItem {
   createTime: string
   dishId: number
@@ -28,6 +34,14 @@ export interface SharePageData {
 export function getSharePage(data: SharePageReq) {
   return request<SharePageData>({
     url: '/share/page',
+    method: 'post',
+    data,
+  })
+}
+
+export function addShare(data: ShareAddPayload) {
+  return request<null>({
+    url: '/share/add',
     method: 'post',
     data,
   })
