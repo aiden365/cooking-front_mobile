@@ -56,6 +56,8 @@ export interface DishDetailData {
   viewCount: number
   collectCount: number
   userCollected: boolean
+  shareCount: number
+  checkStatus: 1 | 2
 }
 
 export interface DishMaterialItem {
@@ -89,6 +91,7 @@ export interface DishCommentItem {
   userName: string
   content: string
   startCount: number
+  childCount: number
   createTime: string
 }
 

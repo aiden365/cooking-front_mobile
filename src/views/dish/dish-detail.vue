@@ -51,7 +51,10 @@ type DetailCommentReplyView = {
 }
 
 type DetailCommentView = DetailCommentReplyView & {
+  childCount: number
   replies: DetailCommentReplyView[]
+  repliesLoaded: boolean
+  repliesLoading: boolean
 }
 
 type DetailViewModel = {
@@ -61,7 +64,9 @@ type DetailViewModel = {
   viewCount: number
   collectCount: number
   isFavorite: boolean
+  shareCount: number
   cover: string
+  checkStatus:number
 }
 
 const router = useRouter()
@@ -102,10 +107,21 @@ const visibleSteps = computed(() => {
 })
 
 const commentCount = computed(() =>
-  comments.value.reduce((total, item) => total + 1 + item.replies.length, 0),
+  comments.value.reduce((total, item) => total + 1 + item.childCount, 0),
 )
 
 const heroCount = computed(() => steps.value.length)
+const aiNoticeText = computed(() => {
+  if (!detail.value) {
+    return ''
+  }
+
+  if (detail.value.checkStatus === 2) {
+    return 'AI生成声明：该菜谱内容由 AI 生成并已经过人工校准，请结合实际烹饪场景灵活调整。'
+  }
+
+  return 'AI生成声明：该菜谱内容由 AI 生成，暂未经过人工校准，请谨慎参考并结合实际情况调整。'
+})
 
 function getDishId() {
   return Number(route.params.id || 0)
@@ -176,22 +192,64 @@ function mapReplyItem(item: DishCommentItem): DetailCommentReplyView {
 
 async function loadCommentList(dishId: number) {
   commentLoading.value = true
-
   try {
     const parentResponse = await getDishCommentList(dishId, 0)
-    const parentComments = parentResponse.data
-    const replyResponses = await Promise.all(
-      parentComments.map((comment) => getDishCommentList(dishId, comment.id)),
-    )
-
-    comments.value = parentComments.map<DetailCommentView>((comment, index) => ({
+    comments.value = parentResponse.data.map<DetailCommentView>((comment) => ({
       ...mapReplyItem(comment),
-      replies: replyResponses[index].data.map(mapReplyItem),
+      childCount: comment.childCount,
+      replies: [],
+      repliesLoaded: false,
+      repliesLoading: false,
     }))
   } catch (error) {
     showToast.fail(error instanceof Error ? error.message : '评论加载失败')
   } finally {
     commentLoading.value = false
+  }
+}
+
+async function toggleReplies(commentId: number) {
+  const dishId = getDishId()
+  const current = comments.value.find((item) => item.id === commentId)
+
+  if (!current || current.childCount === 0) {
+    return
+  }
+
+  if (current.repliesLoaded) {
+    comments.value = comments.value.map((item) =>
+      item.id === commentId
+        ? { ...item, repliesLoaded: false, replies: [] }
+        : item,
+    )
+    return
+  }
+
+  if (current.repliesLoading) {
+    return
+  }
+
+  comments.value = comments.value.map((item) =>
+    item.id === commentId ? { ...item, repliesLoading: true } : item,
+  )
+
+  try {
+    const response = await getDishCommentList(dishId, commentId)
+    comments.value = comments.value.map((item) =>
+      item.id === commentId
+        ? {
+            ...item,
+            replies: response.data.map(mapReplyItem),
+            repliesLoaded: true,
+            repliesLoading: false,
+          }
+        : item,
+    )
+  } catch (error) {
+    comments.value = comments.value.map((item) =>
+      item.id === commentId ? { ...item, repliesLoading: false } : item,
+    )
+    showToast.fail(error instanceof Error ? error.message : '回复加载失败')
   }
 }
 
@@ -223,7 +281,9 @@ async function loadDishData() {
       viewCount: detailResponse.data.viewCount,
       collectCount: detailResponse.data.collectCount,
       isFavorite: detailResponse.data.userCollected,
+      shareCount: detailResponse.data.shareCount,
       cover: stepList[0]?.images[0] ?? '',
+      checkStatus: detailResponse.data.checkStatus,
     }
 
     materials.value = materialResponse.data
@@ -495,7 +555,7 @@ onBeforeUnmount(() => {
         <div class="intro-main">
           <h1 class="dish-title">{{ detail.title }}</h1>
           <p class="dish-stats">
-            用时{{ detail.takeTimes }} · 浏览{{ detail.viewCount }} · 收藏{{ detail.collectCount }}
+            预计用时 {{ detail.takeTimes }} · 分享 {{ detail.shareCount }} · 收藏 {{ detail.collectCount }}
           </p>
         </div>
         <button
@@ -511,6 +571,15 @@ onBeforeUnmount(() => {
           />
           <span>{{ detail.isFavorite ? '已收藏' : '收藏' }}</span>
         </button>
+      </section>
+
+      <section class="detail-section ai-notice-section">
+        <div class="ai-notice">
+          <div class="ai-notice-track">
+            <span>{{ aiNoticeText }}</span>
+            <span>{{ aiNoticeText }}</span>
+          </div>
+        </div>
       </section>
 
       <section class="detail-section">
@@ -544,7 +613,7 @@ onBeforeUnmount(() => {
         <article v-for="(step, index) in visibleSteps" :key="step.id" class="step-card">
           <p class="step-text">
             <strong>步骤{{ index + 1 }}/{{ steps.length }}</strong>
-            {{ step.description }}
+            <div>{{ step.description }}</div>
           </p>
           <div v-if="step.images.length" class="step-gallery">
             <img v-for="image in step.images" :key="image" :src="image" />
@@ -592,13 +661,28 @@ onBeforeUnmount(() => {
                   </span>
                 </p>
               </div>
-              <button class="comment-like" type="button" @click="handleStarComment(comment.id)">
+<!--              <button class="comment-like" type="button" @click="handleStarComment(comment.id)">
                 <HeartN size="14" color="#9ca3af" />
                 <span>{{ comment.likes }}</span>
-              </button>
+              </button>-->
             </div>
 
-            <div v-if="comment.replies.length" class="reply-list">
+            <button
+              v-if="comment.childCount > 0"
+              class="reply-toggle"
+              type="button"
+              @click="toggleReplies(comment.id)"
+            >
+              {{
+                comment.repliesLoading
+                  ? '回复加载中...'
+                  : comment.repliesLoaded
+                    ? '收起回复'
+                    : `共 ${comment.childCount} 条回复`
+              }}
+            </button>
+
+            <div v-if="comment.repliesLoaded && comment.replies.length" class="reply-list">
               <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
                 <div class="reply-avatar">{{ getAvatarText(reply.nickname) }}</div>
                 <div class="reply-content">
@@ -606,9 +690,9 @@ onBeforeUnmount(() => {
                   <p class="comment-content">{{ reply.content }}</p>
                   <p class="comment-meta">
                     {{ reply.time }}
-                    <span class="comment-link" @click="openCommentPopup(comment.id, reply.nickname)">
+<!--                    <span class="comment-link" @click="openCommentPopup(comment.id, reply.nickname)">
                       回复
-                    </span>
+                    </span>-->
                     <span
                       v-if="canDeleteComment(reply.userId)"
                       class="comment-link"
@@ -618,10 +702,10 @@ onBeforeUnmount(() => {
                     </span>
                   </p>
                 </div>
-                <button class="comment-like" type="button" @click="handleStarComment(reply.id)">
+<!--                <button class="comment-like" type="button" @click="handleStarComment(reply.id)">
                   <HeartN size="14" color="#9ca3af" />
                   <span>{{ reply.likes }}</span>
-                </button>
+                </button>-->
               </div>
             </div>
           </div>
@@ -715,9 +799,17 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .detail-page {
-  min-height: 100vh;
+  height: 100vh;
   padding-bottom: 92px;
+  overflow-y: auto;
   background: #f4f4f4;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.detail-page::-webkit-scrollbar {
+  display: none;
 }
 
 .page-state {
@@ -782,6 +874,43 @@ onBeforeUnmount(() => {
   margin-top: 8px;
   padding: 18px 14px;
   background: #ffffff;
+}
+
+.ai-notice-section {
+  padding: 10px 14px;
+}
+
+.ai-notice {
+  overflow: hidden;
+  padding: 10px 0;
+  color: #c2410c;
+  font-size: 13px;
+  line-height: 1;
+  background: linear-gradient(135deg, #fff7ed 0%, #fff1f2 100%);
+  border: 1px solid rgba(255, 111, 97, 0.22);
+  border-radius: 14px;
+}
+
+.ai-notice-track {
+  display: flex;
+  width: max-content;
+  white-space: nowrap;
+  animation: ai-notice-scroll 16s linear infinite;
+}
+
+.ai-notice-track span {
+  display: inline-block;
+  padding-right: 48px;
+}
+
+@keyframes ai-notice-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .detail-intro {
@@ -996,6 +1125,15 @@ onBeforeUnmount(() => {
 .reply-list {
   margin-top: 14px;
   padding-left: 6px;
+}
+
+.reply-toggle {
+  margin-top: 10px;
+  padding: 0;
+  color: rgb(255, 111, 97);
+  font-size: 13px;
+  background: transparent;
+  border: none;
 }
 
 .reply-item {
