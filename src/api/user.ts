@@ -91,6 +91,12 @@ export interface UserDietMeal {
   dishes: UserDietDish[]
 }
 
+export interface UserDietAddPayload {
+  dishId: number
+  dietDate: string
+  dietOrder: 1 | 2 | 3
+}
+
 
 export function getUserProfile() {
   return request<UserProfileForm>({
@@ -167,6 +173,14 @@ export function deleteUserDietPlan(dietId: number) {
     url: 'diet/delete',
     method: 'post',
     data: { dietId },
+  })
+}
+
+export function addUserDietPlan(data: UserDietAddPayload) {
+  return request<null>({
+    url: 'diet/add',
+    method: 'post',
+    data,
   })
 }
 

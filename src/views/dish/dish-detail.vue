@@ -34,6 +34,7 @@ import {
   type DishStepItem,
 } from '../../api/dish'
 import { getSystemLabels, getUserLabels, type SystemLabel } from '../../api/label'
+import { addUserDietPlan, getUserDietPlan, type UserDietMeal } from '../../api/user'
 
 defineOptions({
   name: 'DishDetail',
@@ -74,6 +75,21 @@ type DetailViewModel = {
   checkStatus:number
 }
 
+type DietMealOption = {
+  order: 1 | 2 | 3
+  label: '早餐' | '午餐' | '晚餐'
+}
+
+type CalendarCell = {
+  key: string
+  date: Date | null
+  dayText: string
+  subText: string
+  isCurrentMonth: boolean
+  isToday: boolean
+  isSelected: boolean
+}
+
 const router = useRouter()
 const route = useRoute()
 
@@ -91,6 +107,7 @@ const showAllSteps = ref(false)
 const showAIPanel = ref(false)
 const showCommentPopup = ref(false)
 const showScorePopup = ref(false)
+const showDietPopup = ref(false)
 const aiButtonTop = ref(360)
 const isDragging = ref(false)
 const movedDuringDrag = ref(false)
@@ -105,6 +122,8 @@ const replyTargetName = ref('')
 const scoreLoading = ref(false)
 const scoreSubmitting = ref(false)
 const scoreLoaded = ref(false)
+const dietPlanLoading = ref(false)
+const dietSubmitting = ref(false)
 const scoreStats = ref<DishAppraiseTotalData>({
   dishId: 0,
   manipulationAvg: 0,
@@ -117,9 +136,15 @@ const userScore = ref<DishAppraiseRecordItem>({
   equalScore: 0,
   satisfactionScore: 0,
 })
+const currentCalendarDate = ref(startOfDay(new Date()))
+const selectedDietDate = ref(startOfDay(new Date()))
+const selectedDietOrder = ref<0 | 1 | 2 | 3>(0)
+const dietMeals = ref<UserDietMeal[]>([])
+const dietPlanCache = ref<Record<string, UserDietMeal[]>>({})
 
 let pointerStartY = 0
 let buttonStartTop = 0
+let dietPlanRequestId = 0
 
 const currentUserId = getCurrentUserId()
 
@@ -133,6 +158,52 @@ const commentCount = computed(() =>
 
 const heroCount = computed(() => steps.value.length)
 const totalScorePercent = computed(() => getScorePercent(scoreStats.value.totalScore))
+const dietMealOptions: DietMealOption[] = [
+  { order: 1, label: '早餐' },
+  { order: 2, label: '午餐' },
+  { order: 3, label: '晚餐' },
+]
+const dietMonthLabel = computed(
+  () =>
+    `${String(currentCalendarDate.value.getMonth() + 1).padStart(2, '0')}月  ${currentCalendarDate.value.getFullYear()}年`,
+)
+const calendarCells = computed<CalendarCell[]>(() => {
+  const year = currentCalendarDate.value.getFullYear()
+  const month = currentCalendarDate.value.getMonth()
+  const firstDay = new Date(year, month, 1)
+  const totalDays = new Date(year, month + 1, 0).getDate()
+  const leadingBlankCount = firstDay.getDay()
+  const cells: CalendarCell[] = []
+
+  for (let index = 0; index < leadingBlankCount; index += 1) {
+    cells.push({
+      key: `blank-${year}-${month}-${index}`,
+      date: null,
+      dayText: '',
+      subText: '',
+      isCurrentMonth: false,
+      isToday: false,
+      isSelected: false,
+    })
+  }
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    const date = new Date(year, month, day)
+    const relativeLabel = getRelativeDateLabel(date)
+
+    cells.push({
+      key: formatDateKey(date),
+      date,
+      dayText: relativeLabel || String(day),
+      subText: relativeLabel ? String(day) : '',
+      isCurrentMonth: true,
+      isToday: isSameDate(date, new Date()),
+      isSelected: isSameDate(date, selectedDietDate.value),
+    })
+  }
+
+  return cells
+})
 const scoreDimensionList = computed(() => [
   {
     key: 'manipulationScore' as const,
@@ -164,6 +235,44 @@ const aiNoticeText = computed(() => {
 
 function getDishId() {
   return Number(route.params.id || 0)
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function isSameDate(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
+}
+
+function formatDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`
+}
+
+function getRelativeDateLabel(date: Date) {
+  const current = startOfDay(new Date())
+  const target = startOfDay(date)
+  const dayDiff = Math.round((target.getTime() - current.getTime()) / 86400000)
+
+  if (dayDiff === 0) {
+    return '今天'
+  }
+
+  if (dayDiff === 1) {
+    return '明天'
+  }
+
+  if (dayDiff === 2) {
+    return '后天'
+  }
+
+  return ''
 }
 
 function getCurrentUserId() {
@@ -503,6 +612,125 @@ function openScorePopup() {
 
 function closeScorePopup() {
   showScorePopup.value = false
+}
+
+async function loadDietPlanByDate(date: Date) {
+  const dishId = getDishId()
+  const dateKey = formatDateKey(date)
+
+  if (!dishId) {
+    return
+  }
+
+  if (dietPlanCache.value[dateKey]) {
+    applyDietPlanSelection(dietPlanCache.value[dateKey], dishId)
+    return
+  }
+
+  const requestId = ++dietPlanRequestId
+  dietPlanLoading.value = true
+
+  try {
+    const response = await getUserDietPlan(dateKey)
+
+    if (requestId !== dietPlanRequestId) {
+      return
+    }
+
+    dietPlanCache.value = {
+      ...dietPlanCache.value,
+      [dateKey]: response.data,
+    }
+    applyDietPlanSelection(response.data, dishId)
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '饮食计划加载失败')
+  } finally {
+    if (requestId === dietPlanRequestId) {
+      dietPlanLoading.value = false
+    }
+  }
+}
+
+function applyDietPlanSelection(meals: UserDietMeal[], dishId: number) {
+  dietMeals.value = meals
+
+  const matchedMeal = meals.find((meal) =>
+    meal.dishes.some((dish) => Number(dish.dishId) === dishId || Number(dish.id) === dishId),
+  )
+
+  selectedDietOrder.value = matchedMeal
+    ? matchedMeal.key === 'breakfast'
+      ? 1
+      : matchedMeal.key === 'lunch'
+        ? 2
+        : 3
+    : 0
+}
+
+function openDietPopup() {
+  const today = startOfDay(new Date())
+  currentCalendarDate.value = startOfDay(today)
+  selectedDietDate.value = startOfDay(today)
+  selectedDietOrder.value = 0
+  dietPlanLoading.value = false
+  showDietPopup.value = true
+  void loadDietPlanByDate(today)
+}
+
+function closeDietPopup() {
+  showDietPopup.value = false
+}
+
+function switchDietMonth(step: -1 | 1) {
+  currentCalendarDate.value = new Date(
+    currentCalendarDate.value.getFullYear(),
+    currentCalendarDate.value.getMonth() + step,
+    1,
+  )
+}
+
+function selectDietDate(date: Date | null) {
+  if (!date) {
+    return
+  }
+
+  if (isSameDate(date, selectedDietDate.value)) {
+    return
+  }
+
+  selectedDietDate.value = startOfDay(date)
+  currentCalendarDate.value = new Date(date.getFullYear(), date.getMonth(), 1)
+  void loadDietPlanByDate(date)
+}
+
+async function submitDietRecord() {
+  const dishId = getDishId()
+
+  if (!dishId) {
+    return
+  }
+
+  if (!selectedDietOrder.value) {
+    showToast.text('请选择餐次')
+    return
+  }
+
+  dietSubmitting.value = true
+
+  try {
+    await addUserDietPlan({
+      dishId,
+      dietDate: formatDateKey(selectedDietDate.value),
+      dietOrder: selectedDietOrder.value,
+    })
+    dietPlanCache.value = {}
+    showToast.success('已加入饮食记录')
+    showDietPopup.value = false
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '加入饮食记录失败')
+  } finally {
+    dietSubmitting.value = false
+  }
 }
 
 function setUserScore(key: keyof DishAppraiseRecordItem, score: number) {
@@ -883,7 +1111,7 @@ onBeforeUnmount(() => {
         <StarN size="18" color="#8b8b8b" />
         <span>评分</span>
       </button>
-      <button type="button" class="action-item">
+      <button type="button" class="action-item" @click="openDietPopup">
         <Edit size="18" color="#8b8b8b" />
         <span>记录</span>
       </button>
@@ -986,6 +1214,73 @@ onBeforeUnmount(() => {
           {{ scoreSubmitting ? '提交中...' : '立即评分' }}
         </button>
       </template>
+    </section>
+
+    <div v-if="showDietPopup" class="diet-popup-mask" @click="closeDietPopup" />
+    <section v-if="showDietPopup" class="diet-popup">
+      <div class="diet-popup-handle" />
+      <div class="diet-popup-header">
+        <button type="button" class="diet-popup-text-button" @click="closeDietPopup">取消</button>
+        <div class="diet-popup-month">
+          <button type="button" class="diet-month-switch" @click="switchDietMonth(-1)">
+            <icon-mdi-chevron-left />
+          </button>
+          <span>{{ dietMonthLabel }}</span>
+          <button type="button" class="diet-month-switch" @click="switchDietMonth(1)">
+            <icon-mdi-chevron-right />
+          </button>
+        </div>
+        <button
+          type="button"
+          class="diet-popup-text-button diet-popup-text-button-primary"
+          :disabled="dietSubmitting"
+          @click="submitDietRecord"
+        >
+          {{ dietSubmitting ? '提交中' : '完成' }}
+        </button>
+      </div>
+
+      <div class="diet-week-row">
+        <span>日</span>
+        <span>一</span>
+        <span>二</span>
+        <span>三</span>
+        <span>四</span>
+        <span>五</span>
+        <span>六</span>
+      </div>
+
+      <div class="diet-calendar-grid">
+        <button
+          v-for="cell in calendarCells"
+          :key="cell.key"
+          type="button"
+          class="diet-day-cell"
+          :class="{
+            'diet-day-cell-empty': !cell.date,
+            'diet-day-cell-today': cell.isToday && !cell.isSelected,
+            'diet-day-cell-selected': cell.isSelected,
+          }"
+          :disabled="!cell.date"
+          @click="selectDietDate(cell.date)"
+        >
+          <span class="diet-day-text">{{ cell.dayText }}</span>
+          <span v-if="cell.subText" class="diet-day-subtext">{{ cell.subText }}</span>
+        </button>
+      </div>
+
+      <div class="diet-meal-section" :class="{ 'diet-meal-section-loading': dietPlanLoading }">
+        <button
+          v-for="meal in dietMealOptions"
+          :key="meal.order"
+          type="button"
+          class="diet-meal-option"
+          :class="{ 'diet-meal-option-active': selectedDietOrder === meal.order }"
+          @click="selectedDietOrder = meal.order"
+        >
+          {{ meal.label }}
+        </button>
+      </div>
     </section>
 
     <div v-if="showAIPanel" class="ai-popup-mask" @click="showAIPanel = false" />
@@ -1414,6 +1709,7 @@ onBeforeUnmount(() => {
 
 .comment-popup-mask,
 .score-popup-mask,
+.diet-popup-mask,
 .ai-popup-mask {
   position: fixed;
   inset: 0;
@@ -1423,6 +1719,7 @@ onBeforeUnmount(() => {
 
 .comment-popup,
 .score-popup,
+.diet-popup,
 .ai-popup {
   position: fixed;
   right: 0;
@@ -1437,6 +1734,7 @@ onBeforeUnmount(() => {
 
 .comment-popup-handle,
 .score-popup-handle,
+.diet-popup-handle,
 .ai-popup-handle {
   width: 42px;
   height: 5px;
@@ -1649,6 +1947,147 @@ onBeforeUnmount(() => {
 
 .score-submit-button:disabled {
   opacity: 0.65;
+}
+
+.diet-popup {
+  padding: 12px 18px calc(18px + env(safe-area-inset-bottom));
+}
+
+.diet-popup-header {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.diet-popup-text-button {
+  padding: 0;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+}
+
+.diet-popup-text-button-primary:disabled {
+  opacity: 0.6;
+}
+
+.diet-popup-month {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #4b5563;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.diet-month-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #a3a3a3;
+  font-size: 22px;
+  background: transparent;
+  border: none;
+}
+
+.diet-week-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-top: 26px;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.diet-week-row span:first-child,
+.diet-week-row span:last-child {
+  color: #ff6f61;
+}
+
+.diet-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px 2px;
+  margin-top: 18px;
+}
+
+.diet-day-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0;
+  color: #8f96a3;
+  background: transparent;
+  border: none;
+  border-radius: 14px;
+}
+
+.diet-day-cell-empty {
+  pointer-events: none;
+}
+
+.diet-day-cell-today .diet-day-text {
+  color: #ff6f61;
+}
+
+.diet-day-cell-selected {
+  color: #ffffff;
+  background: #ff7868;
+}
+
+.diet-day-cell-selected .diet-day-text,
+.diet-day-cell-selected .diet-day-subtext {
+  color: #ffffff;
+}
+
+.diet-day-text {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.diet-day-subtext {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.diet-meal-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 28px;
+  min-height: 68px;
+}
+
+.diet-meal-option {
+  height: 68px;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 700;
+  background: #f1f1f4;
+  border: none;
+  border-radius: 14px;
+}
+
+.diet-meal-option-active {
+  color: #ffffff;
+  background: #ff6f61;
+}
+
+.diet-meal-section-loading .diet-meal-option {
+  transition: opacity 0.18s ease;
+  opacity: 0.72;
 }
 
 .ai-popup {
