@@ -101,6 +101,27 @@ export interface DishCommentPayload {
   content: string
 }
 
+export interface DishAppraiseTotalData {
+  dishId: number
+  manipulationAvg: number
+  equalAvg: number
+  satisfactionAvg: number
+  totalScore: number
+}
+
+export interface DishAppraiseRecordItem {
+  manipulationScore: number
+  equalScore: number
+  satisfactionScore: number
+}
+
+export interface DishAppraiseScorePayload {
+  dishId: number
+  manipulationScore: number
+  equalScore: number
+  satisfactionScore: number
+}
+
 export interface DishSearchParams {
   keyword?: string
   sortBy?: 'comprehensive' | 'favorite' | 'activity' | 'time'
@@ -222,6 +243,34 @@ export function deleteDishCollect(dishId: number) {
     data: {
       dishId,
     },
+  })
+}
+
+export function getDishAppraiseTotal(dishId: string | number) {
+  return request<DishAppraiseTotalData>({
+    url: '/appraises/dish-total',
+    method: 'post',
+    data: {
+      dishId,
+    },
+  })
+}
+
+export function getDishUserAppraiseRecord(dishId: string | number) {
+  return request<DishAppraiseRecordItem>({
+    url: '/appraises/user-record',
+    method: 'post',
+    data: {
+      dishId,
+    },
+  })
+}
+
+export function submitDishAppraise(data: DishAppraiseScorePayload) {
+  return request<null>({
+    url: '/appraises/scoring',
+    method: 'post',
+    data,
   })
 }
 

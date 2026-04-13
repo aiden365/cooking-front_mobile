@@ -14,6 +14,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   addDishCollect,
+  getDishAppraiseTotal,
   addDishComment,
   deleteDishCollect,
   deleteDishComment,
@@ -22,6 +23,10 @@ import {
   getDishFlavorList,
   getDishMaterialList,
   getDishStepList,
+  getDishUserAppraiseRecord,
+  submitDishAppraise,
+  type DishAppraiseRecordItem,
+  type DishAppraiseTotalData,
   starDishComment,
   type DishCommentItem,
   type DishFlavorItem,
@@ -85,6 +90,7 @@ const errorMessage = ref('')
 const showAllSteps = ref(false)
 const showAIPanel = ref(false)
 const showCommentPopup = ref(false)
+const showScorePopup = ref(false)
 const aiButtonTop = ref(360)
 const isDragging = ref(false)
 const movedDuringDrag = ref(false)
@@ -96,6 +102,21 @@ const aiErrorMessage = ref('')
 const commentDraft = ref('')
 const replyParentId = ref(0)
 const replyTargetName = ref('')
+const scoreLoading = ref(false)
+const scoreSubmitting = ref(false)
+const scoreLoaded = ref(false)
+const scoreStats = ref<DishAppraiseTotalData>({
+  dishId: 0,
+  manipulationAvg: 0,
+  equalAvg: 0,
+  satisfactionAvg: 0,
+  totalScore: 0,
+})
+const userScore = ref<DishAppraiseRecordItem>({
+  manipulationScore: 0,
+  equalScore: 0,
+  satisfactionScore: 0,
+})
 
 let pointerStartY = 0
 let buttonStartTop = 0
@@ -111,6 +132,24 @@ const commentCount = computed(() =>
 )
 
 const heroCount = computed(() => steps.value.length)
+const totalScorePercent = computed(() => getScorePercent(scoreStats.value.totalScore))
+const scoreDimensionList = computed(() => [
+  {
+    key: 'manipulationScore' as const,
+    label: '操作性',
+    average: scoreStats.value.manipulationAvg,
+  },
+  {
+    key: 'equalScore' as const,
+    label: '匹配度',
+    average: scoreStats.value.equalAvg,
+  },
+  {
+    key: 'satisfactionScore' as const,
+    label: '满意度',
+    average: scoreStats.value.satisfactionAvg,
+  },
+])
 const aiNoticeText = computed(() => {
   if (!detail.value) {
     return ''
@@ -341,6 +380,30 @@ function renderReplyPrefix(reply: DetailCommentReplyView) {
   return reply.nickname
 }
 
+function normalizeScore(value: number) {
+  return Math.min(5, Math.max(0, Math.round(Number(value) || 0)))
+}
+
+function createEmptyUserScore(): DishAppraiseRecordItem {
+  return {
+    manipulationScore: 0,
+    equalScore: 0,
+    satisfactionScore: 0,
+  }
+}
+
+function getScorePercent(score: number) {
+  return `${Math.min(100, Math.max(0, (Number(score) / 5) * 100))}%`
+}
+
+function formatScore(score: number) {
+  return (Number(score) || 0).toFixed(1)
+}
+
+function isStarFilled(score: number, index: number) {
+  return score >= index
+}
+
 function canDeleteComment(userId: number) {
   return currentUserId > 0 && currentUserId === userId
 }
@@ -393,6 +456,91 @@ function closeCommentPopup() {
   commentDraft.value = ''
   replyParentId.value = 0
   replyTargetName.value = ''
+}
+
+async function loadScoreData(force = false) {
+  const dishId = getDishId()
+
+  if (!dishId || scoreLoading.value || (scoreLoaded.value && !force)) {
+    return
+  }
+
+  scoreLoading.value = true
+
+  try {
+    const [totalResponse, recordResponse] = await Promise.all([
+      getDishAppraiseTotal(dishId),
+      getDishUserAppraiseRecord(dishId),
+    ])
+
+
+    scoreStats.value = {
+      dishId: totalResponse.data.dishId,
+      manipulationAvg: Number(totalResponse.data.manipulationAvg) || 0,
+      equalAvg: Number(totalResponse.data.equalAvg) || 0,
+      satisfactionAvg: Number(totalResponse.data.satisfactionAvg) || 0,
+      totalScore: Number(totalResponse.data.totalScore) || 0,
+    }
+    userScore.value = recordResponse.data
+      ? {
+          manipulationScore: normalizeScore(recordResponse.data.manipulationScore),
+          equalScore: normalizeScore(recordResponse.data.equalScore),
+          satisfactionScore: normalizeScore(recordResponse.data.satisfactionScore),
+        }
+      : createEmptyUserScore()
+    scoreLoaded.value = true
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '评分信息加载失败')
+  } finally {
+    scoreLoading.value = false
+  }
+}
+
+function openScorePopup() {
+  showScorePopup.value = true
+  void loadScoreData(true)
+}
+
+function closeScorePopup() {
+  showScorePopup.value = false
+}
+
+function setUserScore(key: keyof DishAppraiseRecordItem, score: number) {
+  userScore.value = {
+    ...userScore.value,
+    [key]: score,
+  }
+}
+
+async function submitScore() {
+  const dishId = getDishId()
+  const { manipulationScore, equalScore, satisfactionScore } = userScore.value
+
+  if (!dishId) {
+    return
+  }
+
+  if (!manipulationScore || !equalScore || !satisfactionScore) {
+    showToast.text('请完成三个维度的评分后再提交')
+    return
+  }
+
+  scoreSubmitting.value = true
+
+  try {
+    await submitDishAppraise({
+      dishId,
+      manipulationScore,
+      equalScore,
+      satisfactionScore,
+    })
+    showToast.success('评分成功')
+    await loadScoreData(true)
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '评分失败')
+  } finally {
+    scoreSubmitting.value = false
+  }
 }
 
 async function submitComment() {
@@ -731,7 +879,7 @@ onBeforeUnmount(() => {
       <button class="comment-input" type="button" @click="openCommentPopup()">
         说点什么...
       </button>
-      <button type="button" class="action-item">
+      <button type="button" class="action-item" @click="openScorePopup">
         <StarN size="18" color="#8b8b8b" />
         <span>评分</span>
       </button>
@@ -768,6 +916,76 @@ onBeforeUnmount(() => {
           {{ submittingComment ? '提交中...' : '提交' }}
         </button>
       </div>
+    </section>
+
+    <div v-if="showScorePopup" class="score-popup-mask" @click="closeScorePopup" />
+    <section v-if="showScorePopup" class="score-popup">
+      <div class="score-popup-handle" />
+      <h3 class="score-popup-title">菜谱评分</h3>
+      <div v-if="scoreLoading" class="score-popup-state">评分信息加载中...</div>
+      <template v-else>
+        <section class="score-summary-card">
+          <div
+            class="score-ring"
+            :style="{ '--score-progress': totalScorePercent }"
+          >
+            <div class="score-ring-inner">{{ formatScore(scoreStats.totalScore) }}</div>
+          </div>
+
+          <div class="score-progress-list">
+            <div
+              v-for="item in scoreDimensionList"
+              :key="item.key"
+              class="score-progress-item"
+            >
+              <div class="score-progress-track">
+                <div class="score-progress-value">{{ formatScore(item.average) }}</div>
+                <div
+                  class="score-progress-bar"
+                  :style="{ width: getScorePercent(item.average) }"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="score-editor">
+          <div
+            v-for="item in scoreDimensionList"
+            :key="`${item.key}-editor`"
+            class="score-row"
+          >
+            <span class="score-label">{{ item.label }}</span>
+            <div class="score-stars">
+              <button
+                v-for="starIndex in 5"
+                :key="`${item.key}-${starIndex}`"
+                type="button"
+                class="score-star-button"
+                @click="setUserScore(item.key, starIndex)"
+              >
+                <icon-mdi-star
+                  v-if="isStarFilled(userScore[item.key], starIndex)"
+                  class="score-star-icon score-star-filled"
+                />
+                <icon-mdi-star-outline
+                  v-else
+                  class="score-star-icon score-star-empty"
+                />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <button
+          type="button"
+          class="score-submit-button"
+          :disabled="scoreSubmitting"
+          @click="submitScore"
+        >
+          {{ scoreSubmitting ? '提交中...' : '立即评分' }}
+        </button>
+      </template>
     </section>
 
     <div v-if="showAIPanel" class="ai-popup-mask" @click="showAIPanel = false" />
@@ -1195,6 +1413,7 @@ onBeforeUnmount(() => {
 }
 
 .comment-popup-mask,
+.score-popup-mask,
 .ai-popup-mask {
   position: fixed;
   inset: 0;
@@ -1203,6 +1422,7 @@ onBeforeUnmount(() => {
 }
 
 .comment-popup,
+.score-popup,
 .ai-popup {
   position: fixed;
   right: 0;
@@ -1216,6 +1436,7 @@ onBeforeUnmount(() => {
 }
 
 .comment-popup-handle,
+.score-popup-handle,
 .ai-popup-handle {
   width: 42px;
   height: 5px;
@@ -1225,6 +1446,7 @@ onBeforeUnmount(() => {
 }
 
 .comment-popup-title,
+.score-popup-title,
 .ai-popup-title {
   margin: 16px 0 0;
   color: #111827;
@@ -1274,6 +1496,159 @@ onBeforeUnmount(() => {
 
 .comment-popup-submit:disabled {
   opacity: 0.6;
+}
+
+.score-popup {
+  padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
+}
+
+.score-popup-title {
+  margin-bottom: 18px;
+}
+
+.score-popup-state {
+  padding: 28px 0 18px;
+  color: #9ca3af;
+  font-size: 14px;
+  text-align: center;
+}
+
+.score-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.score-ring {
+  --score-progress: 0%;
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  background: conic-gradient(#ffc61a var(--score-progress), #ececf6 0);
+}
+
+.score-ring::after {
+  content: '';
+  position: absolute;
+  inset: 15px;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.score-ring-inner {
+  position: relative;
+  z-index: 1;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.score-progress-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.score-progress-item {
+  display: flex;
+  align-items: center;
+}
+
+.score-progress-track {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 22px;
+  overflow: hidden;
+  background: #ececf6;
+  border-radius: 999px;
+}
+
+.score-progress-value {
+  position: absolute;
+  left: 14px;
+  z-index: 1;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.score-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #ffca14 0%, #ffc107 100%);
+  border-radius: inherit;
+}
+
+.score-editor {
+  margin-top: 26px;
+}
+
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.score-row + .score-row {
+  margin-top: 26px;
+}
+
+.score-label {
+  width: 96px;
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.score-stars {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-star-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.score-star-icon {
+  font-size: 34px;
+}
+
+.score-star-filled {
+  color: #ffc633;
+}
+
+.score-star-empty {
+  color: #d9dbe3;
+}
+
+.score-submit-button {
+  width: 100%;
+  height: 52px;
+  margin-top: 54px;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ff6f61 0%, #ff6b63 100%);
+  border: 1px solid #2e7cf6;
+  border-radius: 999px;
+}
+
+.score-submit-button:disabled {
+  opacity: 0.65;
 }
 
 .ai-popup {

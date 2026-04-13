@@ -7,6 +7,7 @@ import axios, {
 export interface ApiResponse<T> {
   code: number
   message: string
+  msg?: string
   data: T
   success?: boolean
 }
@@ -47,12 +48,12 @@ service.interceptors.response.use(
 export function request<T>(config: AxiosRequestConfig) {
   return service.request<ApiResponse<T>>(config).then((response) => {
     const { data } = response
+    const responseMessage = data.message || data.msg || '请求失败'
 
     if (![0, 200].includes(data.code)) {
-        debugger;
-      let err = new Error(data.message || '请求失败');
-      console.log("接口请求失败", err);
-      return Promise.reject(err);
+      const err = new Error(responseMessage)
+      console.log('接口请求失败', err)
+      return Promise.reject(err)
     }
 
     return data
