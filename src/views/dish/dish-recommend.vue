@@ -279,7 +279,7 @@ onMounted(() => {
         type="button"
         @click="backToConfirm"
       >
-        重新生成
+      重新生成
       </button>
       <div v-else class="header-space" />
     </header>
