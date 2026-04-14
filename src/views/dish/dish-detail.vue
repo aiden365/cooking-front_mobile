@@ -10,7 +10,7 @@ import {
   TriangleDown,
 } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AiRecipeLauncher from '../../components/AiRecipeLauncher.vue'
 import {
@@ -26,8 +26,14 @@ import {
   getDishStepList,
   getDishUserAppraiseRecord,
   submitDishAppraise,
+  streamDishGenerate,
   type DishAppraiseRecordItem,
   type DishAppraiseTotalData,
+  type IndividualDishBaseInfo,
+  type IndividualDishFlavor,
+  type IndividualDishMaterial,
+  type IndividualDishStep,
+  type IndividualDishStreamEvent,
   starDishComment,
   type DishCommentItem,
   type DishFlavorItem,
@@ -92,6 +98,7 @@ type CalendarCell = {
 
 const router = useRouter()
 const route = useRoute()
+const generatedDishName = computed(() => String(route.query.dishName || '').trim())
 
 const detail = ref<DetailViewModel | null>(null)
 const materials = ref<DishMaterialItem[]>([])
@@ -115,6 +122,10 @@ const scoreSubmitting = ref(false)
 const scoreLoaded = ref(false)
 const dietPlanLoading = ref(false)
 const dietSubmitting = ref(false)
+const streamFinished = ref(false)
+const streamSaving = ref(false)
+const savedDishId = ref(0)
+const streamTips = ref('')
 const scoreStats = ref<DishAppraiseTotalData>({
   dishId: 0,
   manipulationAvg: 0,
@@ -134,6 +145,7 @@ const dietMeals = ref<UserDietMeal[]>([])
 const dietPlanCache = ref<Record<string, UserDietMeal[]>>({})
 
 let dietPlanRequestId = 0
+let streamController: AbortController | null = null
 
 const currentUserId = getCurrentUserId()
 
@@ -221,9 +233,30 @@ const aiNoticeText = computed(() => {
 
   return 'AI生成声明：该菜谱内容由 AI 生成，暂未经过人工校准，请谨慎参考并结合实际情况调整。'
 })
+const isStreamMode = computed(() => !getDishId() && Boolean(generatedDishName.value))
+const canUseDishActions = computed(() => !isStreamMode.value || savedDishId.value > 0)
+const detailStatusText = computed(() => {
+  if (errorMessage.value) {
+    return errorMessage.value
+  }
+
+  if (isStreamMode.value) {
+    if (streamSaving.value) {
+      return '菜谱内容已生成，正在保存，请稍候...'
+    }
+
+    if (streamFinished.value) {
+      return '菜谱生成完成，等待保存结果...'
+    }
+
+    return '正在根据你输入的菜名生成菜谱内容...'
+  }
+
+  return ''
+})
 
 function getDishId() {
-  return Number(route.params.id || 0)
+  return Number(route.params.id || route.query.dishId || savedDishId.value || 0)
 }
 
 function startOfDay(date: Date) {
@@ -313,6 +346,104 @@ function mapStepList(stepList: DishStepItem[]) {
         images: image ? [image] : [],
       }
     })
+}
+
+function mapGeneratedMaterial(item: IndividualDishMaterial, index: number): DishMaterialItem {
+  return {
+    id: index + 1,
+    dishId: getDishId(),
+    materialName: item.name,
+    dosage: item.dosage,
+    deal: item.deal,
+  }
+}
+
+function mapGeneratedFlavor(item: IndividualDishFlavor, index: number): DishFlavorItem {
+  return {
+    id: index + 1,
+    dishId: getDishId(),
+    flavorName: item.name,
+    dosage: item.dosage,
+  }
+}
+
+function mapGeneratedStep(item: IndividualDishStep): DetailStepView {
+  return {
+    id: Number(item.stepNumber) || steps.value.length + 1,
+    description: item.instruction,
+    images: [],
+  }
+}
+
+function applyGeneratedBase(baseInfo: IndividualDishBaseInfo) {
+  const nextTitle = baseInfo.dishName || generatedDishName.value || detail.value?.title || 'AI生成菜谱'
+  const nextTakeTimes = baseInfo.take_times || baseInfo.takeTimes || detail.value?.takeTimes || ''
+
+  detail.value = {
+    id: savedDishId.value,
+    title: nextTitle,
+    takeTimes: nextTakeTimes,
+    viewCount: detail.value?.viewCount || 0,
+    collectCount: detail.value?.collectCount || 0,
+    isFavorite: detail.value?.isFavorite || false,
+    shareCount: detail.value?.shareCount || 0,
+    cover: detail.value?.cover || '',
+    checkStatus: detail.value?.checkStatus || 1,
+  }
+}
+
+function applyGeneratedEvent(event: IndividualDishStreamEvent) {
+  debugger;
+  switch (event.type) {
+    case 'start':
+      errorMessage.value = ''
+      streamSaving.value = false
+      return
+    case 'base':
+      applyGeneratedBase(event.data)
+      return
+    case 'material':
+      materials.value = [...materials.value, mapGeneratedMaterial(event.data, materials.value.length)]
+      return
+    case 'flavor':
+      flavors.value = [...flavors.value, mapGeneratedFlavor(event.data, flavors.value.length)]
+      return
+    case 'step':
+      steps.value = [...steps.value, mapGeneratedStep(event.data)].sort((left, right) => left.id - right.id)
+      return
+    case 'tips':
+      streamTips.value = event.data
+      return
+    case 'done':
+      streamFinished.value = true
+      streamSaving.value = true
+      loading.value = false
+      return
+    case 'saved':
+      savedDishId.value = Number(event.data.dishId) || 0
+      streamSaving.value = false
+
+      if (detail.value && savedDishId.value > 0) {
+        detail.value = {
+          ...detail.value,
+          id: savedDishId.value,
+        }
+
+        void router.replace({
+          name: 'DishDetail',
+          params: {
+            id: String(savedDishId.value),
+          },
+        })
+        void loadCommentList(savedDishId.value)
+      }
+      return
+    case 'error':
+      errorMessage.value = event.message || '菜谱生成失败'
+      streamSaving.value = false
+      loading.value = false
+      return
+  }
 }
 
 function mapReplyItem(item: DishCommentItem): DetailCommentReplyView {
@@ -435,6 +566,60 @@ async function loadDishData() {
   }
 }
 
+async function loadGeneratedDish() {
+  if (!generatedDishName.value) {
+    errorMessage.value = '菜谱信息不存在'
+    loading.value = false
+    return
+  }
+
+  streamController?.abort()
+  streamController = new AbortController()
+  loading.value = true
+  errorMessage.value = ''
+  detail.value = {
+    id: 0,
+    title: generatedDishName.value,
+    takeTimes: '',
+    viewCount: 0,
+    collectCount: 0,
+    isFavorite: false,
+    shareCount: 0,
+    cover: '',
+    checkStatus: 1,
+  }
+  materials.value = []
+  flavors.value = []
+  steps.value = []
+  comments.value = []
+  streamTips.value = ''
+  streamFinished.value = false
+  streamSaving.value = false
+  savedDishId.value = 0
+  showAllSteps.value = false
+
+  try {
+    await streamDishGenerate(
+      {
+        dishName: generatedDishName.value,
+      },
+      {
+        signal: streamController.signal,
+        onEvent: applyGeneratedEvent,
+      },
+    )
+
+    loading.value = false
+  } catch (error) {
+    if (streamController?.signal.aborted) {
+      return
+    }
+
+    errorMessage.value = error instanceof Error ? error.message : '菜谱生成失败'
+    loading.value = false
+  }
+}
+
 function goBack() {
   if (window.history.length > 1) {
     router.back()
@@ -449,7 +634,7 @@ function getAvatarText(name: string) {
 }
 
 async function toggleFavorite() {
-  if (!detail.value || favoriteLoading.value) {
+  if (!detail.value || favoriteLoading.value || !canUseDishActions.value) {
     return
   }
 
@@ -543,6 +728,11 @@ async function handleDeleteComment(commentId: number) {
 }
 
 function openCommentPopup(parentId = 0, targetName = '') {
+  if (!canUseDishActions.value) {
+    showToast.text('菜谱保存后才能评论')
+    return
+  }
+
   replyParentId.value = parentId
   replyTargetName.value = targetName
   commentDraft.value = ''
@@ -595,6 +785,11 @@ async function loadScoreData(force = false) {
 }
 
 function openScorePopup() {
+  if (!canUseDishActions.value) {
+    showToast.text('菜谱保存后才能评分')
+    return
+  }
+
   showScorePopup.value = true
   void loadScoreData(true)
 }
@@ -657,6 +852,11 @@ function applyDietPlanSelection(meals: UserDietMeal[], dishId: number) {
 }
 
 function openDietPopup() {
+  if (!canUseDishActions.value) {
+    showToast.text('菜谱保存后才能加入饮食记录')
+    return
+  }
+
   const today = startOfDay(new Date())
   currentCalendarDate.value = startOfDay(today)
   selectedDietDate.value = startOfDay(today)
@@ -792,6 +992,11 @@ async function submitComment() {
 }
 
 function handleGeneratePlan(payload: { labelIds: number[]; labelNames: string[] }) {
+  if (!canUseDishActions.value) {
+    showToast.text('菜谱保存后才能生成个性化菜谱')
+    return
+  }
+
   const dishId = getDishId()
 
   if (!dishId) {
@@ -812,8 +1017,8 @@ function handleGeneratePlan(payload: { labelIds: number[]; labelNames: string[] 
 function goToSharePage() {
   const dishId = getDishId()
 
-  if (!dishId) {
-    showToast.text('菜谱信息不存在')
+  if (!dishId || !canUseDishActions.value) {
+    showToast.text('菜谱保存后才能分享')
     return
   }
 
@@ -826,7 +1031,22 @@ function goToSharePage() {
 }
 
 onMounted(() => {
-  void loadDishData()
+  debugger;
+  if (getDishId()) {
+    void loadDishData()
+    return
+  }
+
+  if (generatedDishName.value) {
+    void loadGeneratedDish()
+    return
+  }
+
+  errorMessage.value = '菜谱信息不存在'
+})
+
+onBeforeUnmount(() => {
+  streamController?.abort()
 })
 </script>
 
@@ -856,7 +1076,7 @@ onMounted(() => {
         <button
           class="favorite-button"
           type="button"
-          :disabled="favoriteLoading"
+          :disabled="favoriteLoading || !canUseDishActions"
           @click="toggleFavorite"
         >
           <component
@@ -874,6 +1094,11 @@ onMounted(() => {
             <span>{{ aiNoticeText }}</span>
             <span>{{ aiNoticeText }}</span>
           </div>
+        </div>
+        <div v-if="isStreamMode" class="stream-status">
+          <Loading1 v-if="!errorMessage && !savedDishId" size="14" color="#ff7d55" />
+          <Category v-else size="14" :color="errorMessage ? '#ff5a5a' : '#ff9f43'" />
+          <span>{{ detailStatusText }}</span>
         </div>
       </section>
 
@@ -930,7 +1155,12 @@ onMounted(() => {
         </button>
       </section>
 
-      <section class="detail-section comments-section">
+      <section v-if="streamTips" class="detail-section">
+        <h2 class="section-title">小贴士</h2>
+        <div class="tips-card">{{ streamTips }}</div>
+      </section>
+
+      <section v-if="canUseDishActions" class="detail-section comments-section">
         <h2 class="section-title">菜谱评论({{ commentCount }})</h2>
         <div v-if="commentLoading" class="comment-state">评论加载中...</div>
         <div v-else-if="!comments.length" class="comment-state">还没有评论，来抢个沙发吧</div>
@@ -1007,22 +1237,22 @@ onMounted(() => {
         </article>
       </section>
 
-      <AiRecipeLauncher @generate="handleGeneratePlan" />
+      <AiRecipeLauncher v-if="canUseDishActions" @generate="handleGeneratePlan" />
     </template>
 
     <footer v-if="detail" class="detail-actionbar">
-      <button class="comment-input" type="button" @click="openCommentPopup()">
-        说点什么...
+      <button class="comment-input" type="button" :disabled="!canUseDishActions" @click="openCommentPopup()">
+        {{ canUseDishActions ? '说点什么...' : '菜谱保存后可评论' }}
       </button>
-      <button type="button" class="action-item" @click="openScorePopup">
+      <button type="button" class="action-item" :disabled="!canUseDishActions" @click="openScorePopup">
         <StarN size="18" color="#8b8b8b" />
         <span>评分</span>
       </button>
-      <button type="button" class="action-item" @click="openDietPopup">
+      <button type="button" class="action-item" :disabled="!canUseDishActions" @click="openDietPopup">
         <Edit size="18" color="#8b8b8b" />
         <span>记录</span>
       </button>
-      <button type="button" class="action-item" @click="goToSharePage">
+      <button type="button" class="action-item" :disabled="!canUseDishActions" @click="goToSharePage">
         <ShareN size="18" color="#8b8b8b" />
         <span>分享</span>
       </button>
@@ -1276,6 +1506,18 @@ onMounted(() => {
   padding: 10px 14px;
 }
 
+.stream-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  color: #6b7280;
+  font-size: 13px;
+  background: #fff7ed;
+  border-radius: 12px;
+}
+
 .ai-notice {
   overflow: hidden;
   padding: 10px 0;
@@ -1349,6 +1591,15 @@ onMounted(() => {
 
 .favorite-button:disabled {
   opacity: 0.6;
+}
+
+.tips-card {
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.7;
+  background: #faf7f3;
+  border-radius: 14px;
+  padding: 14px 12px;
 }
 
 .section-head {
@@ -1576,6 +1827,11 @@ onMounted(() => {
   background: #f3f4f6;
   border: none;
   border-radius: 999px;
+}
+
+.comment-input:disabled,
+.action-item:disabled {
+  opacity: 0.55;
 }
 
 .action-item {

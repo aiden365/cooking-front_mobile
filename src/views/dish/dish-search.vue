@@ -12,7 +12,7 @@ defineOptions({
 const route = useRoute()
 const router = useRouter()
 
-const keyword = ref('西红柿鸡蛋面')
+const keyword = ref('')
 const appliedKeyword = ref('')
 const sortBy = ref<DishSearchParams['sortBy']>('comprehensive')
 const withVideo = ref(false)
@@ -40,7 +40,7 @@ const showEmptyGenerate = computed(
 )
 
 function applyKeywordFromRoute() {
-  keyword.value = String(route.query.keyword || '').trim()
+  keyword.value = String(route.query.keyword || '西红柿鸡蛋面').trim()
 }
 
 async function loadSearchList(isLoadMore = false) {
@@ -141,11 +141,12 @@ async function handleGenerateDish() {
       return
     }
 
+    debugger;
+
     router.push({
-      name: 'DishGenerate',
+      name: 'DishDetail',
       query: {
         dishName,
-        generating: '1',
       },
     })
   } catch (error) {

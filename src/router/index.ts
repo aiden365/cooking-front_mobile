@@ -37,6 +37,11 @@ const routes = [
     component: () => import('../views/dish/dish-individual.vue'),
   },
   {
+    path: '/dish/recommend',
+    name: 'DishRecommend',
+    component: () => import('../views/dish/dish-recommend.vue'),
+  },
+  {
     path: '/share-list',
     name: 'SharesList',
     component: () => import('../views/shares/share-list.vue'),

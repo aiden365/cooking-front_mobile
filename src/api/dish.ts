@@ -334,6 +334,31 @@ export interface DishGeneratePayload {
   dishName: string
 }
 
+export interface DietRecommendProfile {
+  gender: string
+  age: string
+  stature: string
+  weight: string
+}
+
+export interface DietRecommendNutrition {
+  name: string
+  value: string
+}
+
+export interface DietRecommendMeal {
+  key: 'breakfast' | 'lunch' | 'dinner'
+  title: '早餐' | '中餐' | '晚餐'
+  dishName: string
+  description: string
+}
+
+export interface DietRecommendPreview {
+  status: string
+  meals: DietRecommendMeal[]
+  analysis: string
+}
+
 type IndividualDishStreamEventMap = {
   start: { type: 'start'; status: string }
   base: { type: 'base'; data: IndividualDishBaseInfo }
@@ -342,6 +367,7 @@ type IndividualDishStreamEventMap = {
   step: { type: 'step'; data: IndividualDishStep }
   tips: { type: 'tips'; data: string }
   done: { type: 'done'; status: string }
+  saved: { type: 'saved'; data: { dishId: number } }
   error: { type: 'error'; status: string; name?: string; message: string }
 }
 
@@ -389,6 +415,68 @@ export async function streamDishGenerate(
   handlers: IndividualDishStreamHandlers = {},
 ) {
   return streamDishByUrl('/api/dish/aigc', payload, handlers, '菜谱生成失败')
+}
+
+export function buildDietRecommendPreview(payload: {
+  profile: DietRecommendProfile
+  nutritions: DietRecommendNutrition[]
+  selectedLabelNames: string[]
+}): DietRecommendPreview {
+  const labelNames = payload.selectedLabelNames
+  const nutritionSummary = payload.nutritions
+    .map((item) => `${item.name}${item.value}`)
+    .join('、')
+
+  const hasCold = labelNames.some((item) => item.includes('感冒'))
+  const hasFever = labelNames.some((item) => item.includes('发烧'))
+  const avoidSpicy = labelNames.some((item) => item.includes('不吃辣'))
+  const preferLight = hasCold || hasFever || labelNames.some((item) => item.includes('清淡'))
+  const dishTone = preferLight ? '以温热、清淡、易消化为主' : '以均衡营养、饱腹稳定为主'
+  const spicyText = avoidSpicy ? '全程少油少辣，避免刺激性调味。' : '调味保持适中，避免过咸过腻。'
+  const conditionText = labelNames.length
+    ? `当前结合你的标签状态：${labelNames.join('、')}。`
+    : '当前未勾选特殊身体状态标签，将按照均衡膳食方案推荐。'
+
+  const meals: DietRecommendMeal[] = [
+    {
+      key: 'breakfast',
+      title: '早餐',
+      dishName: preferLight ? '温热燕麦粥' : '鸡蛋全麦三明治',
+      description: preferLight
+        ? '燕麦搭配鸡蛋和少量水果，帮助补充碳水与优质蛋白，口感温和，适合晨间恢复。'
+        : '兼顾复合碳水、蛋白质与膳食纤维，能更平稳地提供上午所需能量。',
+    },
+    {
+      key: 'lunch',
+      title: '中餐',
+      dishName: preferLight ? '鸡胸肉山药冬瓜汤' : '糙米饭配清炒虾仁西兰花',
+      description: preferLight
+        ? '以低脂蛋白搭配山药、冬瓜等清润食材，汤水更易入口，也便于补充能量。'
+        : '主食、蔬菜和优质蛋白搭配完整，兼顾饱腹感与营养密度。',
+    },
+    {
+      key: 'dinner',
+      title: '晚餐',
+      dishName: preferLight ? '嫩豆腐蔬菜羹' : '香菇鸡肉荞麦面',
+      description: preferLight
+        ? '晚餐控制油脂和烹饪负担，保持轻盈好消化，减少夜间肠胃压力。'
+        : '补充晚间恢复所需蛋白与碳水，同时避免晚餐过量造成负担。',
+    },
+  ]
+
+  const analysis = [
+    `用户${payload.profile.age}岁，身高${payload.profile.stature}，体重${payload.profile.weight}。`,
+    conditionText,
+    nutritionSummary ? `当前营养目标重点为：${nutritionSummary}。` : '当前尚未补充明确营养目标，建议尽快完善营养目标信息。',
+    `${dishTone}${spicyText}`,
+    '整体建议优先选择蒸、煮、炖等方式，规律进餐并注意水分补充。',
+  ].join('')
+
+  return {
+    status: '正在基于你的基本信息和健康状态，为你生成科学健康的饮食方案...',
+    meals,
+    analysis,
+  }
 }
 
 async function streamDishByUrl(
