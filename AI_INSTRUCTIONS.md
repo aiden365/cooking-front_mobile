@@ -103,12 +103,13 @@ cooking-front_mobile
   - [x] 菜谱搜索页面设计与实现 (已完成)
   - [x] 菜谱列表页面设计与实现 (已完成)
   - [x] 菜谱详情页面设计与实现 (已完成)
-  - [ ] AI个性化菜谱生成功能设计与实现 (当前进行)
+  - [x] AI个性化菜谱生成功能设计与实现 (已完成)
   - [x] 菜谱评分功能的设计与实现 (已完成)
   - [x] 菜谱列表页面接口对接 (已完成)
   - [x] 菜谱详细页面接口对接 (已完成)
   - [x] 饮食记录功能的设计与实现 (已完成)
-  - [ ] 菜品分享功能的设计与实现 (已完成)
+  - [x] 菜品分享功能的设计与实现 (已完成)
+  - [ ] 菜谱搜索页面功能实现与接口对接 (当前进行)
 - [ ] **阶段 3: 菜品分享模块 ** 
   - [ ] 菜品分享页面设计与实现 
   - [x] 菜品分享列表页面设计与实现 (已完成)
@@ -136,38 +137,18 @@ cooking-front_mobile
 
 ## 6. 当前执行任务 (Current Task)
 > **开发者指令：** 
-> 现在，让我们开始`AI个性化菜谱生成功能设计与实现`吧
-> 1. 请在 `(src/views/dish/dish-individual.vue)` 页面等文件中完成接口对接工作
-> 2. 首先，在菜谱详情页面。 用户点击ai小助手 然后再弹出层中，选择 用户标签。然后 用户标签id和菜谱id。 跳转到个性化菜谱页面。 
-> 3. 在个性化菜谱页面。通过调用个性化菜谱生成接口 或许AI生成的菜谱内容 
-> 4. 个性化菜谱生成接口 请求地址为 post '/individualDish/aigc' 接口参数为 {dishId, labelIds} 其中labelIds为用户在菜谱详情页选择的标签id，dishId为菜谱id
-> 5. 个性化菜谱生成接口 的结果为流式响应 (Java中接口的返回类型是Flux<String>) 其内容 为JSON Line 具体内容如下所示。要求能正确解析JSON Line格式的数据并展示到页面。
-> 5. 要求在接口返回结果前 使用骨架屏效果 对待加载区域填充灰色的占位图 进行过度 
-> 6. 各接口返回的数据结构如下JSON所示
+> 现在，让我们开始`菜谱搜索页面功能实现与接口对接`吧
+> 1. 请在 `(src/views/dish/search.vue)` 和 `(src/views/dish/detail.vue)` 页面及dish.ts等相关文件中完成功能实现与接口对接工作
+> 2. 首先，在菜谱搜索页面。顶部搜索框的右侧添加一个按钮，点击按钮后，出发搜索接口
+> 3. 菜谱搜索接口可复用 dish.ts 中定义 getDishPage 方法 并在此基础上 添加排序条件
+> 4. 将菜谱搜索结果列表改为 滚动加载 使用NutUI自带的滚动加载组件 <nut-infinite-loading> 具体实现参考 (src/views/index/index.vue)
+> 5. 菜谱搜索结果列表滚动时 顶部的搜索框不跟随滚动
+> 6. 如果用户点击搜索按钮后 搜索接口返回 没有匹配到菜谱数据，则表示可能菜谱不存在，然后在列表中添加一条提示信息 ‘未检索到相关的菜谱’ 并在提示信息下方添加一个按钮 ‘立即生成’
+> 7. 如果用户点击立即生成按钮， 则调用 菜名验证接口 接口地址 post /dish/verifyName 接口接收 dishName 为参数 如果接口返回boolean值 false则提示用户请输入 正确的菜名，如果接口返回 true 则携带dishName参数和generating标记 跳转至菜谱详情页
+> 8. 在菜谱详情页 如果 检测到生成标记切菜名不为空 则调用 菜谱生成接口 在生成过程中 根据菜谱详情页当前结构 显示骨架屏效果 对待加载区域填充灰色的占位图 进行过度
+> 9. 菜谱生成接口 的结果与个性化菜谱生成接口（）一致均为流式响应 (Java中接口的返回类型是Flux<String>) 返回JSON Line 并且内容也一致 。
+> 10. 要求能正确解析JSON Line格式的数据并展示到菜谱详细页面。 
 
 
-```text
-
-// 文件上传接口响应示例
-
-
-{"type":"start","status":"success"}
-{"type":"base","data":{"dishName":"紫菜蛋花汤","take_times":"15分钟"}}
-{"type":"material","data":{"name":"紫菜","dosage":"5克","deal":"温水泡发10分钟，挤干水分"}}
-{"type":"material","data":{"name":"鸡蛋","dosage":"1个","deal":"打散成均匀蛋液"}}
-{"type":"material","data":{"name":"葱花","dosage":"5克","deal":"新鲜小葱切细末"}}
-{"type":"flavor","data":{"name":"盐","dosage":"1克"}}
-{"type":"flavor","data":{"name":"姜汁","dosage":"3滴"}}
-{"type":"flavor","data":{"name":"白胡椒粉","dosage":"少许"}}
-{"type":"step","data":{"stepNumber":1,"instruction":"锅中加入600毫升清水，放入姜汁，大火烧至微沸"}}
-{"type":"step","data":{"stepNumber":2,"instruction":"下泡发并挤干的紫菜，中火煮2分钟"}}
-{"type":"step","data":{"stepNumber":3,"instruction":"转最小火，用筷子搅出漩涡，缓慢淋入蛋液，静置5秒不搅动"}}
-{"type":"step","data":{"stepNumber":4,"instruction":"加盐、白胡椒粉，轻轻搅匀，煮30秒"}}
-{"type":"step","data":{"stepNumber":5,"instruction":"关火前撒葱花，利用余热焖30秒"}}
-{"type":"tips","data":"感冒发烧期间宜清淡温热，避免醋刺激胃黏膜；姜汁助驱寒，白胡椒粉暖胃散寒；蛋液需离火淋入以保嫩滑；全程不加味精、鸡精。"}
-{"type":"done","status":"success"}
-
-
-```
 
 

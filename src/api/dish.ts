@@ -287,6 +287,15 @@ export interface DishPage {
   pages: number
 }
 
+export interface DishPageQuery {
+  pageNo: number
+  pageSize: number
+  search?: string
+  labelId?: number
+  sortBy?: DishSearchParams['sortBy']
+  withVideo?: boolean
+}
+
 type IndividualDishErrorResponse = {
   code?: number
   message?: string
@@ -301,7 +310,8 @@ export interface IndividualDishGeneratePayload {
 
 export interface IndividualDishBaseInfo {
   dishName: string
-  takeTimes: string
+  take_times?: string
+  takeTimes?: string
 }
 
 export interface IndividualDishMaterial {
@@ -318,6 +328,10 @@ export interface IndividualDishFlavor {
 export interface IndividualDishStep {
   stepNumber: number
   instruction: string
+}
+
+export interface DishGeneratePayload {
+  dishName: string
 }
 
 type IndividualDishStreamEventMap = {
@@ -367,8 +381,24 @@ export async function streamIndividualDish(
   payload: IndividualDishGeneratePayload,
   handlers: IndividualDishStreamHandlers = {},
 ) {
+  return streamDishByUrl('/api/individualDish/aigc', payload, handlers, '个性化菜谱生成失败')
+}
+
+export async function streamDishGenerate(
+  payload: DishGeneratePayload,
+  handlers: IndividualDishStreamHandlers = {},
+) {
+  return streamDishByUrl('/api/dish/aigc', payload, handlers, '菜谱生成失败')
+}
+
+async function streamDishByUrl(
+  url: string,
+  payload: object,
+  handlers: IndividualDishStreamHandlers,
+  fallbackMessage: string,
+) {
   const token = localStorage.getItem('token')
-  const response = await fetch('/api/individualDish/aigc', {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -379,7 +409,7 @@ export async function streamIndividualDish(
   })
 
   if (!response.ok) {
-    throw new Error(`个性化菜谱生成失败(${response.status})`)
+    throw new Error(`${fallbackMessage}(${response.status})`)
   }
 
   const contentType = response.headers.get('content-type') || ''
@@ -389,7 +419,7 @@ export async function streamIndividualDish(
     const message =
       (typeof errorBody.message === 'string' && errorBody.message) ||
       (typeof errorBody.msg === 'string' && errorBody.msg) ||
-      '个性化菜谱生成失败'
+      fallbackMessage
 
     throw new Error(message)
   }
@@ -432,7 +462,7 @@ export async function streamIndividualDish(
       handlers.onEvent?.(parseIndividualDishStreamEvent(finalChunk))
     }
   } catch (error) {
-    const nextError = error instanceof Error ? error : new Error('个性化菜谱生成失败')
+    const nextError = error instanceof Error ? error : new Error(fallbackMessage)
     handlers.onError?.(nextError)
     throw nextError
   } finally {
@@ -440,7 +470,24 @@ export async function streamIndividualDish(
   }
 }
 
-export function getDishPage(pageNo: number, pageSize: number, search?: string, labelId?: number) {
+export function verifyDishName(dishName: string) {
+  return request<boolean>({
+    url: '/dish/verifyName',
+    method: 'post',
+    data: {
+      dishName,
+    },
+  })
+}
+
+export function getDishPage(
+  pageNo: number,
+  pageSize: number,
+  search?: string,
+  labelId?: number,
+  sortBy?: DishSearchParams['sortBy'],
+  withVideo?: boolean,
+) {
   return request<DishPage>({
     url: '/dish/page',
     method: 'post',
@@ -448,7 +495,9 @@ export function getDishPage(pageNo: number, pageSize: number, search?: string, l
       pageNo,
       pageSize,
       search,
-      labelId
+      labelId,
+      sortBy,
+      withVideo,
     },
   })
 }

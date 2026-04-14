@@ -27,6 +27,11 @@ const routes = [
     component: () => import('../views/dish/dish-search.vue'),
   },
   {
+    path: '/dish/generate',
+    name: 'DishGenerate',
+    component: () => import('../views/dish/dish-generate.vue'),
+  },
+  {
     path: '/dish/individual',
     name: 'DishIndividual',
     component: () => import('../views/dish/dish-individual.vue'),

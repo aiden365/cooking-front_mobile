@@ -17,6 +17,7 @@ declare module 'vue' {
     IconMdiLoading: typeof import('~icons/mdi/loading')['default']
     IconMdiLockOutline: typeof import('~icons/mdi/lock-outline')['default']
     IconMdiLockReset: typeof import('~icons/mdi/lock-reset')['default']
+    IconMdiMagnifyCloseOutline: typeof import('~icons/mdi/magnify-close-outline')['default']
     IconMdiRobotExcitedOutline: typeof import('~icons/mdi/robot-excited-outline')['default']
     IconMdiShieldKeyOutline: typeof import('~icons/mdi/shield-key-outline')['default']
     IconMdiStar: typeof import('~icons/mdi/star')['default']
