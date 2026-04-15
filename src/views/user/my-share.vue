@@ -1,196 +1,277 @@
 <script setup lang="ts">
-import { Left, Search2, HeartN } from '@nutui/icons-vue'
+import { Left, Search2, Date } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getUserShareList, type UserShareItem } from '../../api/user'
+import { getSharePage, type ShareListItem } from '../../api/share'
 import { resolveAssetUrl } from '../../utils/assets'
+import { getCurrentUserInfo } from '../../utils/user'
+
 
 defineOptions({
-  name: 'MyShare',
+  name: 'SharesList',
 })
 
 const router = useRouter()
-const keyword = ref('')
+const searchKeyword = ref('')
 const appliedKeyword = ref('')
-const loading = ref(true)
-const shareList = ref<UserShareItem[]>([])
-
+const shareList = ref<ShareListItem[]>([])
+const loading = ref(false)
+const refreshing = ref(false)
+const loadingMore = ref(false)
+const currentPage = ref(1)
+const totalPages = ref(1)
+const total = ref(0)
+const pageSize = 7
+const hasMore = computed(() => currentPage.value < totalPages.value)
+const isEmpty = computed(() => !loading.value && shareList.value.length === 0)
 
 function goBack() {
-  router.push('/user/home')
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  router.push('/')
 }
 
-function submitSearch() {
-  appliedKeyword.value = keyword.value.trim()
-  loadShares()
-}
+async function fetchShareList(pageNum = 1, reset = false) {
+  if (reset) {
+    loading.value = true
+  } else {
+    loadingMore.value = true
+  }
 
-async function loadShares() {
-  loading.value = true
   try {
-    const response = await getUserShareList({
-      pageNum: 1,
-      pageSize: -1,
-      dishName: appliedKeyword.value.trim(),
+    const userInfo = getCurrentUserInfo();
+    const response = await getSharePage({
+      pageNum,
+      pageSize,
+      userId: userInfo.userId,
+      dishName: appliedKeyword.value
     })
-    shareList.value = response.data.records
+
+    const { records, current, pages, total: totalCount } = response.data
+    currentPage.value = current
+    totalPages.value = pages || 1
+    total.value = totalCount
+    shareList.value = reset ? records : [...shareList.value, ...records]
   } catch (error) {
     showToast.fail(error instanceof Error ? error.message : '分享列表加载失败')
   } finally {
     loading.value = false
+    loadingMore.value = false
+    refreshing.value = false
   }
 }
 
+async function refreshList() {
+  if (refreshing.value) {
+    return
+  }
+
+  refreshing.value = true
+  setTimeout(() => {
+    fetchShareList(1, true)
+  }, 3000)
+
+}
+
+async function loadMore() {
+  await fetchShareList(currentPage.value + 1, false)
+}
+
+async function submitSearch() {
+  appliedKeyword.value = searchKeyword.value.trim()
+  totalPages.value = 1
+  currentPage.value = 1
+  await fetchShareList(1, true)
+}
+
 onMounted(() => {
-  void loadShares()
+  void fetchShareList(1, true)
 })
 </script>
 
 <template>
-  <section class="my-share-page">
-    <header class="page-header">
-      <button class="back-button" type="button" @click="goBack">
-        <Left size="18" />
-      </button>
-      <h1 class="page-title">我的分享</h1>
-      <div class="header-space" />
-    </header>
+  <section class="share-list-page">
+    <div class="top-panel">
+      <header class="page-header">
+        <button class="header-side" type="button" aria-label="返回" @click="goBack">
+          <Left size="16" color="#8a8a8a" />
+        </button>
+        <h1>我的分享</h1>
+        <span class="header-side placeholder" />
+      </header>
 
-    <section class="search-section">
-      <div class="search-shell">
-        <Search2 size="18" color="#8f96a3" />
-        <input
-          v-model="keyword"
-          class="search-input"
-          type="text"
-          maxlength="20"
-          placeholder="搜索标签"
-          @keyup.enter="submitSearch"
-        />
-        <button class="search-button" type="button" @click="submitSearch">搜索</button>
-      </div>
-    </section>
-
-    <section v-if="loading" class="state-text">正在加载我的分享...</section>
-    <section v-else-if="!shareList.length" class="state-text">没有找到相关分享内容</section>
-    <section v-else class="share-grid">
-      <article
-        v-for="item in shareList"
-        :key="item.id"
-        class="share-card"
-        @click="router.push({
-          name: 'ShareDetail',
-          params: { id: String(item.id) },
-          query: {
-            dishId: String(item.dishId),
-            dishName: item.dishName,
-            imgPath: item.imgPath,
-            userName: '我',
-            likes: String(item.startCount),
-            createTime: item.createTime,
-          },
-        })"
-      >
-        <img :src="resolveAssetUrl(item.imgPath)" class="share-cover" />
-        <div class="share-card-body">
-          <span class="share-title">{{ item.dishName }}</span>
-          <div class="share-meta">
-            <span class="share-likes">
-              <HeartN size="17" color="#a9a9ad" />
-              <span>{{ item.startCount }}</span>
-            </span>
-          </div>
+      <div class="search-section">
+        <div class="searchbar">
+          <Search2 size="18" color="#8f96a3" />
+          <input
+              v-model="searchKeyword"
+              type="text"
+              maxlength="20"
+              placeholder="搜索菜名"
+              @keyup.enter="submitSearch"
+          />
+          <button class="search-button" type="button" @click="submitSearch">搜索</button>
         </div>
-      </article>
+      </div>
+    </div>
+
+    <section class="list-panel">
+      <nut-infinite-loading :loading="loadingMore" :has-more="hasMore" @load-more="loadMore">
+        <nut-pull-refresh :model-value="refreshing" @refresh="refreshList">
+          <div class="list-content">
+            <div v-if="loading" class="state-box">正在加载分享内容...</div>
+            <template v-else-if="!isEmpty">
+              <section class="share-grid">
+                <article
+                    v-for="item in shareList"
+                    :key="item.id"
+                    class="share-card"
+                    @click="router.push({
+                    name: 'ShareDetail',
+                    params: { id: String(item.id) },
+                    query: {
+                      dishId: String(item.dishId),
+                      dishName: item.dishName,
+                      imgPath: item.imgPath,
+                      userName: item.userName,
+                      likes: String(item.startCount),
+                      createTime: item.createTime,
+                    },
+                  })"
+                >
+                  <img :src="resolveAssetUrl(item.imgPath)" class="share-cover" />
+                  <h2>{{ item.dishName }}</h2>
+                  <div class="share-meta">
+                    <span class="author">删除</span>
+                  </div>
+                </article>
+              </section>
+            </template>
+
+            <div v-else class="empty-state">
+              <p>没有找到相关菜品分享</p>
+              <span>换个菜名再试试吧</span>
+            </div>
+          </div>
+        </nut-pull-refresh>
+      </nut-infinite-loading>
     </section>
   </section>
 </template>
 
 <style scoped>
-.my-share-page {
-  min-height: 100vh;
-  padding-bottom: 24px;
+.share-list-page {
+  --top-panel-height: calc(env(safe-area-inset-top) + 102px);
+  height: 100vh;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.top-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  width: 100%;
   background: #ffffff;
 }
 
 .page-header {
   display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: 32px 1fr 32px;
   align-items: center;
-  padding: 46px 8px 18px;
-  background: #f7f7f7;
+  padding: calc(env(safe-area-inset-top) + 14px) 12px 12px;
+  background: #ffffff;
 }
 
-.back-button {
+.page-header h1 {
+  margin: 0;
+  color: #222222;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.header-side {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
-  color: #8f96a3;
+  padding: 0;
   background: transparent;
   border: none;
 }
 
-.page-title {
-  margin: 0;
-  color: #1a1a1a;
-  font-size: 21px;
-  font-weight: 500;
-  text-align: center;
-}
-
-.header-space {
-  width: 32px;
-  height: 32px;
+.placeholder {
+  visibility: hidden;
 }
 
 .search-section {
-  padding: 18px 16px 10px;
+  padding: 6px 10px 14px;
 }
 
-.search-shell {
+.searchbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 46px;
-  padding: 0 4px 0 12px;
-  border: 1px solid #ffb9ae;
-  border-radius: 17px;
+  height: 44px;
+  padding: 0 6px 0 12px;
+  border: 1px solid #ffc1b8;
+  border-radius: 15px;
   background: #ffffff;
 }
 
-.search-input {
+.searchbar input {
   flex: 1;
   min-width: 0;
-  color: #414141;
+  color: #444444;
   font-size: 15px;
   background: transparent;
   border: none;
   outline: none;
 }
 
-.search-input::placeholder {
-  color: #9da3ae;
+.searchbar input::placeholder {
+  color: #9f9fa5;
 }
 
 .search-button {
-  min-width: 68px;
-  height: 38px;
+  flex-shrink: 0;
+  min-width: 66px;
+  height: 36px;
   color: #ffffff;
   font-size: 16px;
   font-weight: 600;
-  background: linear-gradient(135deg, #ff8b7b 0, #ff715f 100%);
+  background: linear-gradient(135deg, #ff8b7b 0%, #ff715f 100%);
   border: none;
-  border-radius: 14px;
+  border-radius: 13px;
+}
+
+.list-panel {
+  height: 100%;
+  overflow-y: auto;
+  padding-top: var(--top-panel-height);
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.list-content {
+  margin-top: 20px;
+  min-height: calc(100vh - var(--top-panel-height));
 }
 
 .share-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px 14px;
-  padding: 16px 16px 0;
+  gap: 18px 14px;
+  padding: 8px 22px 0;
 }
 
 .share-card {
@@ -201,35 +282,67 @@ onMounted(() => {
 .share-cover {
   display: block;
   width: 100%;
-  aspect-ratio: 1 / 1.28;
+  aspect-ratio: 1 / 1.42;
   object-fit: cover;
   border-radius: 10px;
   background: #f3f4f6;
 }
 
-.share-card-body {
-  padding: 14px 6px 0;
+.share-card h2 {
+  margin: 12px 0 10px;
+  color: #232323;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.35;
 }
-
 
 .share-meta {
-  margin-top: -17px;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.share-likes {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.author,
+.likes {
   color: #a7a7ac;
   font-size: 13px;
 }
 
-.state-text {
-  padding: 46px 0;
-  color: #9aa1ad;
+.author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.likes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.state-box,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(52vh + 32px);
+  color: #9ca3af;
   font-size: 15px;
+  text-align: center;
+}
+
+.empty-state span {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.list-footer {
+  padding: 18px 0 10px;
+  color: #b1b1b7;
+  font-size: 13px;
   text-align: center;
 }
 </style>

@@ -13,6 +13,8 @@ import {
 } from '../../api/share'
 import noImage from '../../assets/img/no_image.svg'
 import { resolveAssetUrl } from '../../utils/assets'
+import { formatRelativeTime } from '../../utils/time'
+import { getCurrentUserInfo } from '../../utils/user'
 
 defineOptions({
   name: 'ShareDetail',
@@ -76,28 +78,7 @@ function getDishId() {
   return Number(detail.value?.dishId || route.query.dishId || 0)
 }
 
-function getCurrentUserId() {
-  const directUserId = Number(localStorage.getItem('userId') || '')
-
-  if (!Number.isNaN(directUserId) && directUserId > 0) {
-    return directUserId
-  }
-
-  const rawUserInfo = localStorage.getItem('userInfo')
-
-  if (!rawUserInfo) {
-    return 0
-  }
-
-  try {
-    const parsed = JSON.parse(rawUserInfo) as { id?: number; userId?: number }
-    return Number(parsed.userId || parsed.id || 0)
-  } catch {
-    return 0
-  }
-}
-
-const currentUserId = getCurrentUserId()
+const currentUserId = getCurrentUserInfo().userId
 
 function goBack() {
   if (window.history.length > 1) {
@@ -123,7 +104,7 @@ function mapCommentReply(item: ShareCommentItem): ShareCommentReplyView {
     userId: Number(item.userId || 0),
     nickname: item.userName || '匿名用户',
     content: item.content || '',
-    time: item.createTime || '',
+    time: item.createTime ? formatRelativeTime(item.createTime) : '',
     likes: Number(item.startCount || 0),
   }
 }

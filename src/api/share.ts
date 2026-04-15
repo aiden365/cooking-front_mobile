@@ -3,6 +3,8 @@ import { request } from './request'
 export interface SharePageReq {
   pageNum: number
   pageSize: number
+  userId?:number
+  aaa?: string
   dishName?: string
 }
 
