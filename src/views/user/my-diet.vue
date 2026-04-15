@@ -128,7 +128,12 @@ watch(selectedDate, (value, oldValue) => {
 <style scoped>
 .diet-page {
   min-height: 100vh;
-  background: #ffffff;
+  height: 100vh;
+  overflow-y: auto;
+  background: #f7f7f7;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
 .page-header {

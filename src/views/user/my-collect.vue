@@ -47,7 +47,6 @@ function formatDate(value: string) {
 
 async function loadCollects() {
   loading.value = true
-  debugger;
 
   try {
 

@@ -393,7 +393,6 @@ function applyGeneratedBase(baseInfo: IndividualDishBaseInfo) {
 }
 
 function applyGeneratedEvent(event: IndividualDishStreamEvent) {
-  debugger;
   switch (event.type) {
     case 'start':
       errorMessage.value = ''
@@ -1031,7 +1030,6 @@ function goToSharePage() {
 }
 
 onMounted(() => {
-  debugger;
   if (getDishId()) {
     void loadDishData()
     return

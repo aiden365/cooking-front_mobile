@@ -142,7 +142,6 @@ async function handleGenerateDish() {
       return
     }
 
-    debugger;
 
     router.push({
       name: 'DishDetail',
