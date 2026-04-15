@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Left, Search2, Date } from '@nutui/icons-vue'
+import { Left, Search2 } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getSharePage, type ShareListItem } from '../../api/share'
+import { deleteShare, getSharePage, type ShareListItem } from '../../api/share'
 import { resolveAssetUrl } from '../../utils/assets'
 import { getCurrentUserInfo } from '../../utils/user'
 
 
 defineOptions({
-  name: 'SharesList',
+  name: 'MyShare',
 })
 
 const router = useRouter()
@@ -19,6 +19,7 @@ const shareList = ref<ShareListItem[]>([])
 const loading = ref(false)
 const refreshing = ref(false)
 const loadingMore = ref(false)
+const deletingShareId = ref(0)
 const currentPage = ref(1)
 const totalPages = ref(1)
 const total = ref(0)
@@ -72,9 +73,8 @@ async function refreshList() {
 
   refreshing.value = true
   setTimeout(() => {
-    fetchShareList(1, true)
+    void fetchShareList(1, true)
   }, 3000)
-
 }
 
 async function loadMore() {
@@ -86,6 +86,42 @@ async function submitSearch() {
   totalPages.value = 1
   currentPage.value = 1
   await fetchShareList(1, true)
+}
+
+async function handleDeleteShare(shareId: number) {
+  if (deletingShareId.value === shareId) {
+    return
+  }
+
+  const confirmed = window.confirm('确认删除这条分享吗？')
+
+  if (!confirmed) {
+    return
+  }
+
+  deletingShareId.value = shareId
+
+  try {
+    await deleteShare({ shareId })
+    showToast.success('删除成功')
+
+    const nextList = shareList.value.filter((item) => item.id !== shareId)
+    shareList.value = nextList
+    total.value = Math.max(0, total.value - 1)
+
+    if (!nextList.length && currentPage.value > 1) {
+      await fetchShareList(currentPage.value - 1, true)
+      return
+    }
+
+    if (!nextList.length) {
+      await fetchShareList(1, true)
+    }
+  } catch (error) {
+    showToast.fail(error instanceof Error ? error.message : '删除失败')
+  } finally {
+    deletingShareId.value = 0
+  }
 }
 
 onMounted(() => {
@@ -144,9 +180,16 @@ onMounted(() => {
                   })"
                 >
                   <img :src="resolveAssetUrl(item.imgPath)" class="share-cover" />
-                  <h2>{{ item.dishName }}</h2>
-                  <div class="share-meta">
-                    <span class="author">删除</span>
+                  <div class="share-info-row">
+                    <h2>{{ item.dishName }}</h2>
+                    <button
+                      type="button"
+                      class="delete-btn"
+                      :disabled="deletingShareId === item.id"
+                      @click.stop="handleDeleteShare(item.id)"
+                    >
+                      {{ deletingShareId === item.id ? '删除中...' : '删除' }}
+                    </button>
                   </div>
                 </article>
               </section>
@@ -289,37 +332,37 @@ onMounted(() => {
 }
 
 .share-card h2 {
-  margin: 12px 0 10px;
+  margin: 0;
   color: #232323;
   font-size: 17px;
   font-weight: 500;
   line-height: 1.35;
 }
 
-.share-meta {
+.share-info-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  margin-top: 12px;
 }
 
-.author,
-.likes {
-  color: #a7a7ac;
-  font-size: 13px;
+.share-info-row h2 {
+  flex: 1;
+  min-width: 0;
 }
 
-.author {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.likes {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.delete-btn {
   flex-shrink: 0;
+  padding: 0;
+  color: #ff7a6a;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+}
+
+.delete-btn:disabled {
+  opacity: 0.6;
 }
 
 .state-box,

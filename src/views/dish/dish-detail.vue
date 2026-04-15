@@ -41,6 +41,7 @@ import {
   type DishStepItem,
 } from '../../api/dish'
 import { addUserDietPlan, getUserDietPlan, type UserDietMeal } from '../../api/user'
+import {resolveAssetUrl} from "../../utils/assets";
 
 defineOptions({
   name: 'DishDetail',
@@ -318,27 +319,12 @@ function getCurrentUserId() {
   }
 }
 
-function resolveMediaPath(path?: string) {
-  if (!path) {
-    return ''
-  }
-
-  if (/^https?:\/\//.test(path)) {
-    return path
-  }
-
-  if (path.startsWith('/')) {
-    return `http://192.168.50.100:8083${path}`
-  }
-
-  return path
-}
 
 function mapStepList(stepList: DishStepItem[]) {
   return [...stepList]
     .sort((a, b) => a.sort - b.sort)
     .map<DetailStepView>((item) => {
-      const image = resolveMediaPath(item.stepImage)
+      const image = item.stepImage ? resolveAssetUrl(item.stepImage) : ''
 
       return {
         id: item.id,
@@ -549,7 +535,7 @@ async function loadDishData() {
       collectCount: detailResponse.data.collectCount,
       isFavorite: detailResponse.data.userCollected,
       shareCount: detailResponse.data.shareCount,
-      cover: stepList[0]?.images[0] ?? '',
+      cover: detailResponse.data.imgPath,
       checkStatus: detailResponse.data.checkStatus,
     }
 
@@ -1054,7 +1040,7 @@ onBeforeUnmount(() => {
     <div v-else-if="errorMessage" class="page-state">{{ errorMessage }}</div>
     <template v-else-if="detail">
       <header class="detail-hero" :class="{ 'detail-hero-compact': !detail.cover }">
-        <img v-if="detail.cover" :src="detail.cover" :alt="detail.title" class="hero-image" />
+        <img v-if="detail.cover" :src="resolveAssetUrl(detail.cover)" :alt="detail.title" class="hero-image" />
         <button class="back-button" type="button" @click="goBack">
           <Left color="#ffffff" size="18" />
         </button>

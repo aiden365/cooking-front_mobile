@@ -10,7 +10,7 @@ defineOptions({
   name: 'MyDiet',
 })
 
-const selectedDate = ref(new Date('2026-04-12'))
+const selectedDate = ref(new Date())
 const onChange = (val: Date) => {
   console.log(val)
 }

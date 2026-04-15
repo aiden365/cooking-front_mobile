@@ -247,7 +247,15 @@ onBeforeUnmount(() => {
       >
         <div class="recipe-grid">
           <article v-for="recipe in recipes" :key="recipe.id" class="recipe-card">
-            <div class="recipe-cover-wrap">
+            <div class="recipe-cover-wrap"
+             @click="router.push({
+                name: 'DishDetail',
+                params: { id: String(recipe.id) },
+                query: {
+                      dishId: String(recipe.id)
+                },
+                })
+            ">
               <img :src="resolveAssetUrl(recipe.imgPath)" class="recipe-cover" />
               <div v-if="recipe.labelNames?.length ?? 0 > 0" class="recipe-badge">{{ recipe.labelNames?.[0] ?? '' }}</div>
               <div v-if="recipe.videoPath" class="recipe-video">

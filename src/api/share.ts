@@ -3,8 +3,7 @@ import { request } from './request'
 export interface SharePageReq {
   pageNum: number
   pageSize: number
-  userId?:number
-  aaa?: string
+  userId?: number
   dishName?: string
 }
 
@@ -55,6 +54,10 @@ export interface ShareCommentPayload {
 export interface ShareCommentDeletePayload {
   shareId: number
   commentId?: number
+}
+
+export interface ShareDeletePayload {
+  shareId: number
 }
 
 export interface SharePageData {
@@ -113,6 +116,14 @@ export function addShareComment(data: ShareCommentPayload) {
 export function deleteShareComment(data: ShareCommentDeletePayload) {
   return request<boolean>({
     url: '/userShareComment/delete',
+    method: 'post',
+    data,
+  })
+}
+
+export function deleteShare(data: ShareDeletePayload) {
+  return request<boolean>({
+    url: '/share/delete',
     method: 'post',
     data,
   })

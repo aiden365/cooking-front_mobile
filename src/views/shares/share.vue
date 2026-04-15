@@ -263,7 +263,7 @@ async function submitShare() {
       imgPath: uploadedImagePath.value,
     })
     showToast.success('分享成功')
-    router.push('/share-list')
+    router.push('/user/my-share')
   } catch (error) {
     showToast.fail(error instanceof Error ? error.message : '分享提交失败')
   } finally {
