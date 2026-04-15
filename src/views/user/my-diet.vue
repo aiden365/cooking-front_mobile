@@ -85,40 +85,42 @@ watch(selectedDate, (value, oldValue) => {
       <h1 class="page-title">饮食记录</h1>
       <div class="header-space"></div>
     </header>
-    <nut-calendar-card v-model="selectedDate" @change="onChange"></nut-calendar-card>
-    <section class="diet-content">
-      <section class="meal-list">
-        <div v-if="loading" class="state-text">正在加载饮食记录...</div>
-        <section v-for="meal in meals" v-else :key="meal.key" class="meal-section">
-          <div class="meal-header">
-            <h2 class="meal-title">{{ meal.label }}</h2>
-            <button class="add-dish-button" type="button" @click="navigateToDishList">
-              添加菜谱
-            </button>
-          </div>
-
-          <div v-if="!meal.dishes.length" class="empty-meal">暂无安排</div>
-
-          <article v-for="dish in meal.dishes" :key="dish.id" class="dish-card">
-            <div class="dish-cover-wrap">
-              <img :src="resolveAssetUrl(dish.dishImg)" class="dish-cover" />
-              <div v-if="dish.hasVideo" class="dish-video">
-                <PlayCircleFill size="18" color="#ffffff" />
-              </div>
+    <section class="page-body">
+      <nut-calendar-card v-model="selectedDate" @change="onChange"></nut-calendar-card>
+      <section class="diet-content">
+        <section class="meal-list">
+          <div v-if="loading" class="state-text">正在加载饮食记录...</div>
+          <section v-for="meal in meals" v-else :key="meal.key" class="meal-section">
+            <div class="meal-header">
+              <h2 class="meal-title">{{ meal.label }}</h2>
+              <button class="add-dish-button" type="button" @click="navigateToDishList">
+                添加菜谱
+              </button>
             </div>
 
-            <div class="dish-main">
-              <h3 class="dish-name">{{ dish.name }}</h3>
-              <div class="dish-tags">
-                <span v-for="tag in dish.tags" :key="tag" class="dish-tag">{{ tag }}</span>
-              </div>
-              <p class="dish-meta">{{ dish.shareCount }}做过 | {{ dish.collectCount }}收藏 </p>
-            </div>
+            <div v-if="!meal.dishes.length" class="empty-meal">暂无安排</div>
 
-            <button class="dish-remove" type="button" @click="removeDish(meal.key, dish.id)">
-              移除
-            </button>
-          </article>
+            <article v-for="dish in meal.dishes" :key="dish.id" class="dish-card">
+              <div class="dish-cover-wrap">
+                <img :src="resolveAssetUrl(dish.dishImg)" class="dish-cover" />
+                <div v-if="dish.hasVideo" class="dish-video">
+                  <PlayCircleFill size="18" color="#ffffff" />
+                </div>
+              </div>
+
+              <div class="dish-main">
+                <h3 class="dish-name">{{ dish.name }}</h3>
+                <div class="dish-tags">
+                  <span v-for="tag in dish.tags" :key="tag" class="dish-tag">{{ tag }}</span>
+                </div>
+                <p class="dish-meta">{{ dish.shareCount }}做过 | {{ dish.collectCount }}收藏 </p>
+              </div>
+
+              <button class="dish-remove" type="button" @click="removeDish(meal.key, dish.id)">
+                移除
+              </button>
+            </article>
+          </section>
         </section>
       </section>
     </section>
@@ -127,21 +129,29 @@ watch(selectedDate, (value, oldValue) => {
 
 <style scoped>
 .diet-page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
-  overflow-y: auto;
+  min-height: 100vh;
+  overflow: hidden;
   background: #f7f7f7;
   box-sizing: border-box;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
 }
 
 .page-header {
   display: grid;
   grid-template-columns: 44px 1fr 44px;
+  flex-shrink: 0;
   align-items: center;
   padding: 46px 8px 18px;
   background: #f7f7f7;
+}
+
+.page-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
 .back-button {
@@ -325,4 +335,3 @@ watch(selectedDate, (value, oldValue) => {
   text-align: center;
 }
 </style>
-emplate>
