@@ -4,6 +4,7 @@ import { showToast } from '@nutui/nutui'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getUserShareList, type UserShareItem } from '../../api/user'
+import { resolveAssetUrl } from '../../utils/assets'
 
 defineOptions({
   name: 'MyShare',
@@ -75,7 +76,7 @@ onMounted(() => {
     <section v-else-if="!shareList.length" class="state-text">没有找到相关分享内容</section>
     <section v-else class="share-grid">
       <article v-for="item in shareList" :key="item.id" class="share-card">
-        <img :src="item.imgPath" class="share-cover" />
+        <img :src="resolveAssetUrl(item.imgPath)" class="share-cover" />
         <div class="share-card-body">
           <span class="share-title">{{ item.dishName }}</span>
           <div class="share-meta">

@@ -4,6 +4,7 @@ import { showToast } from '@nutui/nutui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDishPage, verifyDishName, type DishItem, type DishSearchParams } from '../../api/dish'
+import { resolveAssetUrl } from '../../utils/assets'
 
 defineOptions({
   name: 'DishSearch',
@@ -253,7 +254,7 @@ onMounted(() => {
         @load-more="handleLoadMore"
       >
         <article v-for="dish in dishes" :key="dish.id" class="dish-card" @click="goDetail(dish.id)">
-          <img :src="dish.imgPath" :alt="dish.name" class="dish-cover" />
+          <img :src="resolveAssetUrl(dish.imgPath)" :alt="dish.name" class="dish-cover" />
           <div class="dish-info">
             <h2>{{ dish.name }}</h2>
             <div class="tag-row">

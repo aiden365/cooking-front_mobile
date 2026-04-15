@@ -4,6 +4,7 @@ import { showToast } from '@nutui/nutui'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getSharePage, type ShareListItem } from '../../api/share'
+import { resolveAssetUrl } from '../../utils/assets'
 
 defineOptions({
   name: 'SharesList',
@@ -20,8 +21,6 @@ const currentPage = ref(1)
 const totalPages = ref(1)
 const total = ref(0)
 const pageSize = 7
-const backendBaseUrl = 'http://192.168.50.100:8082'
-
 const hasMore = computed(() => currentPage.value < totalPages.value)
 const isEmpty = computed(() => !loading.value && shareList.value.length === 0)
 
@@ -32,18 +31,6 @@ function goBack() {
   }
 
   router.push('/')
-}
-
-function resolveImageUrl(url: string) {
-  if (!url) {
-    return ''
-  }
-
-  if (/^https?:\/\//.test(url)) {
-    return url
-  }
-
-  return `${backendBaseUrl}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 async function fetchShareList(pageNum = 1, reset = false) {
@@ -137,7 +124,7 @@ onMounted(() => {
             <template v-else-if="!isEmpty">
               <section class="share-grid">
                 <article v-for="item in shareList" :key="item.id" class="share-card">
-                  <img :src="item.imgPath"  class="share-cover" />
+                  <img :src="resolveAssetUrl(item.imgPath)" class="share-cover" />
                   <h2>{{ item.dishName }}</h2>
                   <div class="share-meta">
                     <span class="author">{{ item.userName }}</span>

@@ -7,6 +7,7 @@ import { getDishDetail, type DishDetailData } from '../../api/dish'
 import { addShare } from '../../api/share'
 import { uploadFile } from '../../api/system'
 import noImage from '../../assets/img/no_image.svg'
+import { resolveAssetUrl } from '../../utils/assets'
 
 defineOptions({
   name: 'ShareCreate',
@@ -57,19 +58,7 @@ function goBack() {
 }
 
 function resolveMediaPath(path?: string) {
-  if (!path) {
-    return ''
-  }
-
-  if (/^https?:\/\//.test(path)) {
-    return path
-  }
-
-  if (path.startsWith('/')) {
-    return `http://192.168.50.100:8083${path}`
-  }
-
-  return path
+  return resolveAssetUrl(path)
 }
 
 function resolveUploadPath(result: UploadResult | null | undefined) {

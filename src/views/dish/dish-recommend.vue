@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { Left } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { SystemLabel } from '../../api/label'
 import { getSystemLabels, getUserLabels } from '../../api/label'
 import {
-  buildDietRecommendPreview,
-  type DietRecommendNutrition,
-  type DietRecommendPreview,
+  streamDietRecommend,
+  type DietRecommendMeal,
+  type DietRecommendStreamEvent,
 } from '../../api/dish'
 import {
   getSystemNutritionList,
@@ -39,12 +39,18 @@ const router = useRouter()
 const loading = ref(true)
 const generating = ref(false)
 const showResult = ref(false)
+const streamFinished = ref(false)
+const analysisStarted = ref(false)
+const errorMessage = ref('')
+const streamStatus = ref('正在根据你的基本信息和健康状态生成饮食推荐...')
 
 const nutritionOptions = ref<SystemNutritionItem[]>([])
 const nutritions = ref<UserNutritionItem[]>([])
 const systemLabels = ref<SystemLabel[]>([])
 const selectedLabelIds = ref<number[]>([])
-const recommendation = ref<DietRecommendPreview | null>(null)
+const mealMap = ref<Partial<Record<DietRecommendMeal['key'], DietRecommendMeal>>>({})
+const analysisText = ref('')
+let streamController: AbortController | null = null
 
 const profile = ref<RecommendProfile>({
   userName: '',
@@ -55,30 +61,62 @@ const profile = ref<RecommendProfile>({
   age: 28,
 })
 
+const hasIncompleteProfile = computed(() => {
+  const age = String(profile.value.age || '').trim()
+  const stature = String(profile.value.stature || '').trim()
+  const weight = String(profile.value.weight || '').trim()
+
+  return profile.value.gender === null || !age || !stature || !weight
+})
+
 const profileRows = computed<ConfirmRow[]>(() => [
   {
     key: 'gender',
     label: '性别',
     value: formatGender(profile.value.gender),
-    action: () => navigateWithConfirm('个人信息需要去个人资料页修改，是否现在前往？', '/user/my-profile'),
+    action: () =>
+      navigateWithConfirm(
+        profile.value.gender === null
+          ? '当前性别信息未填写，请先补全个人信息，是否现在前往？'
+          : '个人信息需要去个人资料页修改，是否现在前往？',
+        '/user/my-profile',
+      ),
   },
   {
     key: 'age',
     label: '年龄',
     value: formatAge(profile.value.age),
-    action: () => navigateWithConfirm('年龄信息需要去个人资料页修改，是否现在前往？', '/user/my-profile'),
+    action: () =>
+      navigateWithConfirm(
+        !String(profile.value.age || '').trim()
+          ? '当前年龄信息未填写，请先补全个人信息，是否现在前往？'
+          : '年龄信息需要去个人资料页修改，是否现在前往？',
+        '/user/my-profile',
+      ),
   },
   {
     key: 'stature',
     label: '身高',
     value: formatMetric(profile.value.stature, 'cm'),
-    action: () => navigateWithConfirm('身高信息需要去个人资料页修改，是否现在前往？', '/user/my-profile'),
+    action: () =>
+      navigateWithConfirm(
+        !String(profile.value.stature || '').trim()
+          ? '当前身高信息未填写，请先补全个人信息，是否现在前往？'
+          : '身高信息需要去个人资料页修改，是否现在前往？',
+        '/user/my-profile',
+      ),
   },
   {
     key: 'weight',
     label: '体重',
     value: formatMetric(profile.value.weight, 'kg'),
-    action: () => navigateWithConfirm('体重信息需要去个人资料页修改，是否现在前往？', '/user/my-profile'),
+    action: () =>
+      navigateWithConfirm(
+        !String(profile.value.weight || '').trim()
+          ? '当前体重信息未填写，请先补全个人信息，是否现在前往？'
+          : '体重信息需要去个人资料页修改，是否现在前往？',
+        '/user/my-profile',
+      ),
   },
 ])
 
@@ -110,12 +148,23 @@ const selectedLabelNames = computed(() =>
     .map((item) => item.labelName),
 )
 
+const recommendationMeals = computed(() => {
+  const order: DietRecommendMeal['key'][] = ['breakfast', 'lunch', 'dinner']
+  return order
+    .map((key) => mealMap.value[key])
+    .filter((item): item is DietRecommendMeal => Boolean(item))
+})
+
 const resultStatusText = computed(() => {
-  if (generating.value) {
-    return recommendation.value?.status || '正在基于你的基本信息和健康状态，为你生成科学健康的饮食方案...'
+  if (errorMessage.value) {
+    return errorMessage.value
   }
 
-  return '已根据你的基本信息和健康状态，生成今日饮食推荐方案。'
+  if (streamFinished.value) {
+    return '已根据你的基本信息和健康状态，生成今日饮食推荐方案。'
+  }
+
+  return streamStatus.value
 })
 
 function formatGender(gender: UserProfileForm['gender']) {
@@ -182,23 +231,6 @@ function isLabelSelected(id: number) {
   return selectedLabelIds.value.includes(id)
 }
 
-function normalizeNutritionList(
-  userList: UserNutritionItem[],
-  optionList: SystemNutritionItem[],
-): DietRecommendNutrition[] {
-  const optionMap = optionList.reduce<Record<number, SystemNutritionItem>>((acc, item) => {
-    acc[item.id] = item
-    return acc
-  }, {})
-
-  return userList
-    .filter((item) => item.nutritionId || item.nutritionName)
-    .map((item) => ({
-      name: item.nutritionName || optionMap[item.nutritionId || 0]?.nutritionName || '营养目标',
-      value: item.aimValue,
-    }))
-}
-
 async function loadPageData() {
   loading.value = true
 
@@ -209,6 +241,7 @@ async function loadPageData() {
         getSystemLabels({
           pageNum: 1,
           pageSize: -1,
+          type:1
         }),
         getUserLabels(),
         getSystemNutritionList(),
@@ -231,38 +264,107 @@ async function loadPageData() {
   }
 }
 
+function resetStreamState() {
+  streamFinished.value = false
+  analysisStarted.value = false
+  errorMessage.value = ''
+  streamStatus.value = '正在根据你的基本信息和健康状态生成饮食推荐...'
+  mealMap.value = {}
+  analysisText.value = ''
+}
+
+function applyDietStreamEvent(event: DietRecommendStreamEvent) {
+  switch (event.type) {
+    case 'start':
+      streamStatus.value = event.status || '正在根据你的基本信息和健康状态生成饮食推荐...'
+      return
+    case 'meal':
+      mealMap.value = {
+        ...mealMap.value,
+        [event.data.key]: event.data,
+      }
+      return
+    case 'analysis_start':
+      analysisStarted.value = true
+      streamStatus.value = event.status || '正在生成饮食分析...'
+      return
+    case 'analysis_content':
+      analysisStarted.value = true
+      analysisText.value += event.content
+      return
+    case 'analysis_done':
+      streamStatus.value = event.status || '饮食分析生成完成'
+      return
+    case 'done':
+      streamFinished.value = true
+      generating.value = false
+      streamStatus.value = event.status || '饮食推荐生成完成'
+      return
+    case 'error':
+      errorMessage.value = event.message || '饮食推荐生成失败'
+      generating.value = false
+      streamFinished.value = false
+      return
+  }
+}
+
 async function handleGenerate() {
+  if (hasIncompleteProfile.value) {
+    navigateWithConfirm('当前性别、年龄、身高或体重信息未补全，请先完善个人信息，是否现在前往？', '/user/my-profile')
+    return
+  }
+
   if (!selectedLabelIds.value.length) {
     showToast.text('请至少选择一个标签后再生成')
     return
   }
 
+  streamController?.abort()
+  streamController = new AbortController()
   showResult.value = true
   generating.value = true
-  recommendation.value = buildDietRecommendPreview({
-    profile: {
-      gender: formatGender(profile.value.gender),
-      age: String(profile.value.age || 28),
-      stature: formatMetric(profile.value.stature, 'cm'),
-      weight: formatMetric(profile.value.weight, 'kg'),
-    },
-    nutritions: normalizeNutritionList(nutritions.value, nutritionOptions.value),
-    selectedLabelNames: selectedLabelNames.value,
-  })
+  resetStreamState()
 
-  await new Promise((resolve) => {
-    window.setTimeout(resolve, 1100)
-  })
+  try {
+    await streamDietRecommend(
+      {
+        labelIds: selectedLabelIds.value,
+      },
+      {
+        signal: streamController.signal,
+        onEvent: applyDietStreamEvent,
+      },
+    )
 
-  generating.value = false
+    if (!streamFinished.value && !errorMessage.value) {
+      streamFinished.value = true
+      generating.value = false
+      streamStatus.value = '饮食推荐生成完成'
+    }
+  } catch (error) {
+    if (streamController.signal.aborted) {
+      return
+    }
+
+    errorMessage.value = error instanceof Error ? error.message : '饮食推荐生成失败'
+    generating.value = false
+    streamFinished.value = false
+    showToast.fail(errorMessage.value)
+  }
 }
 
 function backToConfirm() {
-  showResult.value = false
+  if (window.confirm('是否重新确认信息并生成新的饮食方案？')) {
+    showResult.value = false
+  }
 }
 
 onMounted(() => {
   void loadPageData()
+})
+
+onBeforeUnmount(() => {
+  streamController?.abort()
 })
 </script>
 
@@ -368,7 +470,7 @@ onMounted(() => {
           <section class="result-card">
             <h2 class="section-title">一、饮食推荐：</h2>
 
-            <template v-if="generating">
+            <template v-if="generating && !recommendationMeals.length">
               <div v-for="row in buildSkeletonRows(3)" :key="row" class="result-skeleton">
                 <div class="skeleton-line skeleton-line-title" />
                 <div class="skeleton-line" />
@@ -376,29 +478,35 @@ onMounted(() => {
               </div>
             </template>
 
-            <ol v-else class="recommend-list">
+            <ol v-else-if="recommendationMeals.length" class="recommend-list">
               <li
-                v-for="meal in recommendation?.meals || []"
+                v-for="meal in recommendationMeals"
                 :key="meal.key"
                 class="recommend-item"
               >
                 <div class="item-content">
-                  <strong>{{ meal.title }}：{{ meal.dishName }}。</strong>
-                  <span>{{ meal.description }}</span>
+                  <strong>{{ meal.title }}：{{ meal.dishes.join('、') }}。</strong>
+                  <span>{{ meal.reason }}</span>
                 </div>
               </li>
             </ol>
+
+            <div v-else class="empty-text">暂未生成饮食推荐内容</div>
           </section>
 
           <section class="result-card">
             <h2 class="section-title">二、饮食分析：</h2>
-            <div v-if="generating" class="result-skeleton result-skeleton-analysis">
+            <div
+              v-if="(generating && !analysisText) || (!analysisStarted && !analysisText && !errorMessage)"
+              class="result-skeleton result-skeleton-analysis"
+            >
               <div class="skeleton-line" />
               <div class="skeleton-line" />
               <div class="skeleton-line" />
               <div class="skeleton-line skeleton-line-short" />
             </div>
-            <p v-else class="analysis-text">{{ recommendation?.analysis }}</p>
+            <p v-else-if="analysisText" class="analysis-text">{{ analysisText }}</p>
+            <p v-else class="analysis-text">暂未生成饮食分析内容</p>
           </section>
         </div>
       </div>

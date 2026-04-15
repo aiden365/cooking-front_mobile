@@ -92,6 +92,7 @@ async function loadAILabels(force = false) {
       getSystemLabels({
         pageNum: 1,
         pageSize: -1,
+        type:1,
       }),
       getUserLabels(),
     ])

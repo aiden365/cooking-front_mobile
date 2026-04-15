@@ -10,6 +10,7 @@ import {
 import {getUserDietPlan} from "../../api/user";
 import {getSystemLabels, SystemLabel} from "../../api/label";
 import { useRoute, useRouter } from 'vue-router'
+import { resolveAssetUrl } from '../../utils/assets'
 defineOptions({
   name: 'Index',
 })
@@ -149,7 +150,8 @@ async function loadDietPlan() {
 async function loadSystemLabels(){
   const systemResponse = await getSystemLabels({
     pageNum: 1,
-    pageSize: 10
+    pageSize: 10,
+    type:2
   });
   tags.value = systemResponse.data.records;
 }
@@ -246,7 +248,7 @@ onBeforeUnmount(() => {
         <div class="recipe-grid">
           <article v-for="recipe in recipes" :key="recipe.id" class="recipe-card">
             <div class="recipe-cover-wrap">
-              <img :src="recipe.imgPath" class="recipe-cover" />
+              <img :src="resolveAssetUrl(recipe.imgPath)" class="recipe-cover" />
               <div v-if="recipe.labelNames?.length ?? 0 > 0" class="recipe-badge">{{ recipe.labelNames?.[0] ?? '' }}</div>
               <div v-if="recipe.videoPath" class="recipe-video">
                 <PlayCircleFill size="14" color="#ffffff" />

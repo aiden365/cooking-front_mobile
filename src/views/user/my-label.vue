@@ -54,6 +54,7 @@ async function loadLabelData() {
         pageNum: currentPage.value,
         pageSize: -1,
         search: appliedKeyword.value,
+        type:1
       }),
       getUserLabels(),
     ])

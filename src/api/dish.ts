@@ -334,29 +334,15 @@ export interface DishGeneratePayload {
   dishName: string
 }
 
-export interface DietRecommendProfile {
-  gender: string
-  age: string
-  stature: string
-  weight: string
-}
-
-export interface DietRecommendNutrition {
-  name: string
-  value: string
-}
-
 export interface DietRecommendMeal {
   key: 'breakfast' | 'lunch' | 'dinner'
   title: '早餐' | '中餐' | '晚餐'
-  dishName: string
-  description: string
+  dishes: string[]
+  reason: string
 }
 
-export interface DietRecommendPreview {
-  status: string
-  meals: DietRecommendMeal[]
-  analysis: string
+export interface DietRecommendPayload {
+  labelIds: number[]
 }
 
 type IndividualDishStreamEventMap = {
@@ -376,6 +362,32 @@ export type IndividualDishStreamEvent =
 
 export interface IndividualDishStreamHandlers {
   onEvent?: (event: IndividualDishStreamEvent) => void
+  onError?: (error: Error) => void
+  signal?: AbortSignal
+}
+
+type DietRecommendErrorResponse = {
+  code?: number
+  message?: string
+  msg?: string
+  success?: boolean
+}
+
+type DietRecommendStreamEventMap = {
+  start: { type: 'start'; status?: string }
+  meal: { type: 'meal'; data: DietRecommendMeal }
+  analysis_start: { type: 'analysis_start'; status?: string }
+  analysis_content: { type: 'analysis_content'; content: string }
+  analysis_done: { type: 'analysis_done'; status?: string }
+  done: { type: 'done'; status?: string }
+  error: { type: 'error'; message: string; status?: string; name?: string }
+}
+
+export type DietRecommendStreamEvent =
+  DietRecommendStreamEventMap[keyof DietRecommendStreamEventMap]
+
+export interface DietRecommendStreamHandlers {
+  onEvent?: (event: DietRecommendStreamEvent) => void
   onError?: (error: Error) => void
   signal?: AbortSignal
 }
@@ -417,66 +429,40 @@ export async function streamDishGenerate(
   return streamDishByUrl('/api/dish/aigc', payload, handlers, '菜谱生成失败')
 }
 
-export function buildDietRecommendPreview(payload: {
-  profile: DietRecommendProfile
-  nutritions: DietRecommendNutrition[]
-  selectedLabelNames: string[]
-}): DietRecommendPreview {
-  const labelNames = payload.selectedLabelNames
-  const nutritionSummary = payload.nutritions
-    .map((item) => `${item.name}${item.value}`)
-    .join('、')
+export async function streamDietRecommend(
+  payload: DietRecommendPayload,
+  handlers: DietRecommendStreamHandlers = {},
+) {
+  return streamJsonLineByUrl(
+    '/api/diet/aigc',
+    payload,
+    handlers,
+    '饮食推荐生成失败',
+    parseDietRecommendStreamEvent,
+  )
+}
 
-  const hasCold = labelNames.some((item) => item.includes('感冒'))
-  const hasFever = labelNames.some((item) => item.includes('发烧'))
-  const avoidSpicy = labelNames.some((item) => item.includes('不吃辣'))
-  const preferLight = hasCold || hasFever || labelNames.some((item) => item.includes('清淡'))
-  const dishTone = preferLight ? '以温热、清淡、易消化为主' : '以均衡营养、饱腹稳定为主'
-  const spicyText = avoidSpicy ? '全程少油少辣，避免刺激性调味。' : '调味保持适中，避免过咸过腻。'
-  const conditionText = labelNames.length
-    ? `当前结合你的标签状态：${labelNames.join('、')}。`
-    : '当前未勾选特殊身体状态标签，将按照均衡膳食方案推荐。'
+function parseDietRecommendStreamEvent(line: string): DietRecommendStreamEvent {
+  const parsed = JSON.parse(line) as DietRecommendStreamEvent | DietRecommendErrorResponse
 
-  const meals: DietRecommendMeal[] = [
-    {
-      key: 'breakfast',
-      title: '早餐',
-      dishName: preferLight ? '温热燕麦粥' : '鸡蛋全麦三明治',
-      description: preferLight
-        ? '燕麦搭配鸡蛋和少量水果，帮助补充碳水与优质蛋白，口感温和，适合晨间恢复。'
-        : '兼顾复合碳水、蛋白质与膳食纤维，能更平稳地提供上午所需能量。',
-    },
-    {
-      key: 'lunch',
-      title: '中餐',
-      dishName: preferLight ? '鸡胸肉山药冬瓜汤' : '糙米饭配清炒虾仁西兰花',
-      description: preferLight
-        ? '以低脂蛋白搭配山药、冬瓜等清润食材，汤水更易入口，也便于补充能量。'
-        : '主食、蔬菜和优质蛋白搭配完整，兼顾饱腹感与营养密度。',
-    },
-    {
-      key: 'dinner',
-      title: '晚餐',
-      dishName: preferLight ? '嫩豆腐蔬菜羹' : '香菇鸡肉荞麦面',
-      description: preferLight
-        ? '晚餐控制油脂和烹饪负担，保持轻盈好消化，减少夜间肠胃压力。'
-        : '补充晚间恢复所需蛋白与碳水，同时避免晚餐过量造成负担。',
-    },
-  ]
-
-  const analysis = [
-    `用户${payload.profile.age}岁，身高${payload.profile.stature}，体重${payload.profile.weight}。`,
-    conditionText,
-    nutritionSummary ? `当前营养目标重点为：${nutritionSummary}。` : '当前尚未补充明确营养目标，建议尽快完善营养目标信息。',
-    `${dishTone}${spicyText}`,
-    '整体建议优先选择蒸、煮、炖等方式，规律进餐并注意水分补充。',
-  ].join('')
-
-  return {
-    status: '正在基于你的基本信息和健康状态，为你生成科学健康的饮食方案...',
-    meals,
-    analysis,
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('饮食推荐数据格式错误')
   }
+
+  if ('type' in parsed && typeof parsed.type === 'string') {
+    return parsed as DietRecommendStreamEvent
+  }
+
+  if ('code' in parsed || 'message' in parsed || 'msg' in parsed) {
+    const message =
+      (typeof parsed.message === 'string' && parsed.message) ||
+      (typeof parsed.msg === 'string' && parsed.msg) ||
+      '饮食推荐生成失败'
+
+    throw new Error(message)
+  }
+
+  throw new Error('饮食推荐数据格式错误')
 }
 
 async function streamDishByUrl(
@@ -484,6 +470,26 @@ async function streamDishByUrl(
   payload: object,
   handlers: IndividualDishStreamHandlers,
   fallbackMessage: string,
+) {
+  return streamJsonLineByUrl(
+    url,
+    payload,
+    handlers,
+    fallbackMessage,
+    parseIndividualDishStreamEvent,
+  )
+}
+
+async function streamJsonLineByUrl<TEvent>(
+  url: string,
+  payload: object,
+  handlers: {
+    onEvent?: (event: TEvent) => void
+    onError?: (error: Error) => void
+    signal?: AbortSignal
+  },
+  fallbackMessage: string,
+  parser: (line: string) => TEvent,
 ) {
   const token = localStorage.getItem('token')
   const response = await fetch(url, {
@@ -539,7 +545,7 @@ async function streamDishByUrl(
           continue
         }
 
-        const event = parseIndividualDishStreamEvent(line)
+        const event = parser(line)
         handlers.onEvent?.(event)
       }
     }
@@ -547,7 +553,7 @@ async function streamDishByUrl(
     const finalChunk = `${buffer}${decoder.decode()}`.trim()
 
     if (finalChunk) {
-      handlers.onEvent?.(parseIndividualDishStreamEvent(finalChunk))
+      handlers.onEvent?.(parser(finalChunk))
     }
   } catch (error) {
     const nextError = error instanceof Error ? error : new Error(fallbackMessage)

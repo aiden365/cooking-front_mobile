@@ -110,7 +110,8 @@ cooking-front_mobile
   - [x] 饮食记录功能的设计与实现 (已完成)
   - [x] 菜品分享功能的设计与实现 (已完成)
   - [x] 菜谱搜索页面功能实现与接口对接 (已完成)
-  - [ ] 饮食推荐页面设计 (当前进行)
+  - [x] 饮食推荐页面设计 (已完成)
+  - [ ] 饮食推荐页面的接口对接工作 (当前进行)
 - [ ] **阶段 3: 菜品分享模块 ** 
   - [ ] 菜品分享页面设计与实现 
   - [x] 菜品分享列表页面设计与实现 (已完成)
@@ -138,7 +139,7 @@ cooking-front_mobile
 
 ## 6. 当前执行任务 (Current Task)
 > **开发者指令：** 
-> 现在，让我们开始`饮食推荐页面设计`吧
+> 现在，让我们开始`饮食推荐页面设计`吧 (已完成)
 > 1. 请在饮食推荐页面 `(src/views/dish/dish-recommend.vue)` 及dish.ts等相关文件中完成功能实现与接口对接工作
 > 2. 首先，创建一个饮食推荐页面， 该页面分为 信息确认部分和推荐结果两个部分，进入页面后默认显示信息确认部分，点击确认按钮后，隐藏信息确认部分，显示推荐结果部分
 > 2. 信息确认部分 从上到下分为四个部分，第一部分：用户基本信息，第二部分：用户营养目标信息，第三部分：用户标签信息，第四部分：确认按钮
@@ -154,10 +155,30 @@ cooking-front_mobile
 > 2. 用户基本信息 可参考 `src/views/user/my-profile.vue` 中使用的 getUserProfile 方法
 > 3. 用户营养目标信息 可参考 `src/views/user/my-nutrition.vue` 中使用的 getUserNutritionList 方法
 > 4. 系统标签和用户已选标签信息 可参考 `src/views/user/my-label.vue` 中使用的 getUserLabels 和 getSystemLabels 方法
-> 9. 当用户确认信息后，点击生成按钮 调用 饮食推荐 post /dish/recommend 该接口返回的是一个流式响应，返回的是JSON Line格式的数据，数据格式如下：
-> 9. 菜谱生成接口 的结果与个性化菜谱生成接口（）一致均为流式响应 (Java中接口的返回类型是Flux<String>) 返回JSON Line 并且内容也一致 。
-> 10. 要求能正确解析JSON Line格式的数据并展示到菜谱详细页面。 
+> 5. 当用户确认信息后，点击生成按钮 调用 饮食推荐 post /diet/aigc 接收参数 {labelIds} 该接口返回的是一个流式响应，返回的是JSON Line格式的数据，数据格式如下：
+> 6. 饮食接口的结果与菜谱生成接口一致均为流式响应 (Java中接口的返回类型是Flux<String>) 返回JSON Line 并且内容也一致 。
+> 7. 要求能正确解析JSON Line格式的数据并展示到菜谱详细页面。
+> 8. 在实现接口对接工作时，使用TS对象对接口请求和返回的数据进行类型定义
+> 9. 要求在接口返回结果前 使用骨架屏效果 对待加载区域填充灰色的占位图 进行过度
 
 
+```text
+
+#正常时输出
+{"type":"start"}
+{"type":"meal","data":{"key":"breakfast","title":"早餐","dishes":["菜品名称"],"reason":"推荐理由"}
+{"type":"meal","data":{"key":"lunch","title":"中餐","dishes":["菜品名称"],"reason":"推荐理由"}
+{"type":"meal","data":{"key":"dinner","title":"晚餐","dishes":["菜品名称"],"reason":"推荐理由"}
+{"type":"analysis_start"}
+{"type":"analysis_content","content":"饮食分析内容片段"}
+{"type":"analysis_done"}
+{"type":"done"}
+
+
+#错误时输出
+{"type":"error","message":"错误原因"}
+
+
+```
 
 

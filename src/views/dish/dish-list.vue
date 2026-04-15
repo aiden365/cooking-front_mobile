@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 
 import { getDishPage, type DishItem } from '../../api/dish'
 import { getSystemLabels, type SystemLabel } from '../../api/label'
+import { resolveAssetUrl } from '../../utils/assets'
 
 defineOptions({
   name: 'DishList',
@@ -72,6 +73,7 @@ async function loadCategories() {
     const response = await getSystemLabels({
       pageNum: 1,
       pageSize: -1,
+      type:2
     })
 
     labels.value = response.data.records
@@ -208,7 +210,7 @@ onMounted(async () => {
             @click="goDetail(dish.id)"
           >
             <div class="cover-wrap">
-              <img :src="dish.imgPath" :alt="dish.name" class="dish-cover" />
+              <img :src="resolveAssetUrl(dish.imgPath)" :alt="dish.name" class="dish-cover" />
               <div v-if="dish.videoPath" class="play-badge">
                 <span class="play-triangle" />
               </div>

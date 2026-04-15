@@ -5,6 +5,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getUserCollectList, type UserCollectGroup } from '../../api/user'
 import MdiChevronDown from '~icons/mdi/chevron-down'
+import { resolveAssetUrl } from '../../utils/assets'
 
 defineOptions({
   name: 'MyCollect',
@@ -13,8 +14,6 @@ defineOptions({
 const router = useRouter()
 const loading = ref(true)
 const collectGroups = ref<UserCollectGroup[]>([])
-const backendBaseUrl = 'http://192.168.50.100:8082'
-
 const hasData = computed(() => collectGroups.value.length > 0)
 
 function formatLabels(labels: string) {
@@ -44,18 +43,6 @@ function formatCollectNum(value: number | string) {
 
 function formatDate(value: string) {
   return value.replace(/-/g, '.')
-}
-
-function resolveImageUrl(url: string) {
-  if (!url) {
-    return ''
-  }
-
-  if (/^https?:\/\//.test(url)) {
-    return url
-  }
-
-  return `${backendBaseUrl}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 async function loadCollects() {
@@ -99,7 +86,7 @@ onMounted(() => {
           </div>
 
           <article v-for="dish in group.dishes" :key="dish.id" class="collect-card">
-            <img :src="dish.img"  class="dish-cover" />
+            <img :src="resolveAssetUrl(dish.img)" class="dish-cover" />
 
             <div class="dish-main">
               <h2 class="dish-name">{{ dish.name }}</h2>

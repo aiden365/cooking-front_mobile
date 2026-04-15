@@ -4,6 +4,7 @@ import { showToast } from '@nutui/nutui'
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getUserDietPlan, deleteUserDietPlan, type UserDietMeal } from '../../api/user'
+import { resolveAssetUrl } from '../../utils/assets'
 
 defineOptions({
   name: 'MyDiet',
@@ -100,7 +101,7 @@ watch(selectedDate, (value, oldValue) => {
 
           <article v-for="dish in meal.dishes" :key="dish.id" class="dish-card">
             <div class="dish-cover-wrap">
-              <img :src="dish.dishImg"  class="dish-cover" />
+              <img :src="resolveAssetUrl(dish.dishImg)" class="dish-cover" />
               <div v-if="dish.hasVideo" class="dish-video">
                 <PlayCircleFill size="18" color="#ffffff" />
               </div>

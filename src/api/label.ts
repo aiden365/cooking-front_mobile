@@ -12,7 +12,7 @@ export interface SystemLabelPage {
   size: number
 }
 
-export function getSystemLabels(data: { pageNum: number; pageSize: number; search?: string }) {
+export function getSystemLabels(data: { pageNum: number; pageSize: number; search?: string; type?:number }) {
   return request<SystemLabelPage>({
     url: 'label/page',
     method: 'post',
