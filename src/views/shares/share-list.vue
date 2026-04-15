@@ -74,7 +74,6 @@ async function refreshList() {
 }
 
 async function loadMore() {
-  alert(1);
   await fetchShareList(currentPage.value + 1, false)
 }
 
@@ -123,7 +122,23 @@ onMounted(() => {
             <div v-if="loading" class="state-box">正在加载分享内容...</div>
             <template v-else-if="!isEmpty">
               <section class="share-grid">
-                <article v-for="item in shareList" :key="item.id" class="share-card">
+                <article
+                  v-for="item in shareList"
+                  :key="item.id"
+                  class="share-card"
+                  @click="router.push({
+                    name: 'ShareDetail',
+                    params: { id: String(item.id) },
+                    query: {
+                      dishId: String(item.dishId),
+                      dishName: item.dishName,
+                      imgPath: item.imgPath,
+                      userName: item.userName,
+                      likes: String(item.startCount),
+                      createTime: item.createTime,
+                    },
+                  })"
+                >
                   <img :src="resolveAssetUrl(item.imgPath)" class="share-cover" />
                   <h2>{{ item.dishName }}</h2>
                   <div class="share-meta">
@@ -261,6 +276,7 @@ onMounted(() => {
 
 .share-card {
   min-width: 0;
+  cursor: pointer;
 }
 
 .share-cover {

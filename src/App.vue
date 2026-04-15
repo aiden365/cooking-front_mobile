@@ -22,6 +22,7 @@ const showTabBar = computed(() =>
     'MyProfile',
     'MyCollect',
     'MyShare',
+    'ShareDetail',
     'MyLabel',
     'MyNutrition',
     'MyDiet',

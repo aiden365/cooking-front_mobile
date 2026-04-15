@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Left, Search2, HeartN } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getUserShareList, type UserShareItem } from '../../api/user'
 import { resolveAssetUrl } from '../../utils/assets'
@@ -75,7 +75,23 @@ onMounted(() => {
     <section v-if="loading" class="state-text">正在加载我的分享...</section>
     <section v-else-if="!shareList.length" class="state-text">没有找到相关分享内容</section>
     <section v-else class="share-grid">
-      <article v-for="item in shareList" :key="item.id" class="share-card">
+      <article
+        v-for="item in shareList"
+        :key="item.id"
+        class="share-card"
+        @click="router.push({
+          name: 'ShareDetail',
+          params: { id: String(item.id) },
+          query: {
+            dishId: String(item.dishId),
+            dishName: item.dishName,
+            imgPath: item.imgPath,
+            userName: '我',
+            likes: String(item.startCount),
+            createTime: item.createTime,
+          },
+        })"
+      >
         <img :src="resolveAssetUrl(item.imgPath)" class="share-cover" />
         <div class="share-card-body">
           <span class="share-title">{{ item.dishName }}</span>
@@ -179,6 +195,7 @@ onMounted(() => {
 
 .share-card {
   min-width: 0;
+  cursor: pointer;
 }
 
 .share-cover {

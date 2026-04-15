@@ -23,6 +23,38 @@ export interface ShareListItem {
   userName: string
 }
 
+export interface ShareDetailData {
+  id: number
+  dishId: number
+  description: string
+  dishName: string
+  imgPath: string
+  createTime: string
+}
+
+export interface ShareCommentItem {
+  id: number
+  parentId: number
+  userName: string
+  content: string
+  createTime: string
+  userId?: number
+  startCount?: number
+  childCount?: number
+  childCommentList?: ShareCommentItem[]
+}
+
+export interface ShareCommentPayload {
+  shareId: number
+  parentId: number
+  content: string
+}
+
+export interface ShareCommentDeletePayload {
+  shareId: number
+  commentId?: number
+}
+
 export interface SharePageData {
   current: number
   pages: number
@@ -42,6 +74,43 @@ export function getSharePage(data: SharePageReq) {
 export function addShare(data: ShareAddPayload) {
   return request<null>({
     url: '/share/add',
+    method: 'post',
+    data,
+  })
+}
+
+export function getShareDetail(shareId: number) {
+  return request<ShareDetailData>({
+    url: '/share/detail',
+    method: 'post',
+    data: {
+      shareId,
+    },
+  })
+}
+
+export function getShareCommentList(shareId: number, parentId = 0) {
+  return request<ShareCommentItem[]>({
+    url: '/userShareComment/list',
+    method: 'post',
+    data: {
+      shareId,
+      parentId,
+    },
+  })
+}
+
+export function addShareComment(data: ShareCommentPayload) {
+  return request<boolean>({
+    url: '/userShareComment/add',
+    method: 'post',
+    data,
+  })
+}
+
+export function deleteShareComment(data: ShareCommentDeletePayload) {
+  return request<boolean>({
+    url: '/userShareComment/delete',
     method: 'post',
     data,
   })

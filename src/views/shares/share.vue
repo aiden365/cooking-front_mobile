@@ -468,7 +468,7 @@ onBeforeUnmount(() => {
 }
 
 .dish-badge {
-  padding: 4px 10px;
+  padding: 4px 1px;
   color: #7b6a58;
   font-size: 13px;
   font-weight: 700;
