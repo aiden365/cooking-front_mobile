@@ -26,6 +26,7 @@ declare module 'vue' {
     NutInfiniteLoading: typeof import('@nutui/nutui')['InfiniteLoading']
     NutPullRefresh: typeof import('@nutui/nutui')['PullRefresh']
     NutSearchbar: typeof import('@nutui/nutui')['Searchbar']
+    NutSwipe: typeof import('@nutui/nutui')['Swipe']
     NutTabbar: typeof import('@nutui/nutui')['Tabbar']
     NutTabbarItem: typeof import('@nutui/nutui')['TabbarItem']
     RouterLink: typeof import('vue-router')['RouterLink']

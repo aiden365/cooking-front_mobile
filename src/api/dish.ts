@@ -296,6 +296,34 @@ export interface DishPageQuery {
   withVideo?: boolean
 }
 
+export interface IndividualDishItem {
+  id: number
+  dishId: number
+  dishName: string
+  content?: string
+  imgPath: string
+  createTime: string
+}
+
+export interface IndividualDishDetailData extends IndividualDishItem {
+  content: string
+}
+
+export interface IndividualDishPageData {
+  current: number
+  pages: number
+  records: IndividualDishItem[]
+  size: number
+  total: number
+}
+
+export interface IndividualDishPagePayload {
+  pageNo: number
+  pageSize: number
+  userId: number
+  search?: string
+}
+
 type IndividualDishErrorResponse = {
   code?: number
   message?: string
@@ -413,6 +441,20 @@ function parseIndividualDishStreamEvent(line: string): IndividualDishStreamEvent
   }
 
   throw new Error('个性化菜谱数据格式错误')
+}
+
+export function parseIndividualDishContent(content: string) {
+  const normalizedContent = content.trim()
+
+  if (!normalizedContent) {
+    return [] as IndividualDishStreamEvent[]
+  }
+
+  return normalizedContent
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => parseIndividualDishStreamEvent(line))
 }
 
 export async function streamIndividualDish(
@@ -592,6 +634,41 @@ export function getDishPage(
       labelId,
       sortBy,
       withVideo,
+    },
+  })
+}
+
+export async function getMyIndividualDishPage(
+  payload: IndividualDishPagePayload,
+ ) {
+  return request<IndividualDishPageData>({
+    url: '/individualDish/page',
+    method: 'post',
+    data: {
+      pageNo: payload.pageNo,
+      pageSize: payload.pageSize,
+      userId: payload.userId,
+      search: payload.search,
+    },
+  })
+}
+
+export function getIndividualDishDetail(individualDishId: number) {
+  return request<IndividualDishDetailData>({
+    url: '/individualDish/detail',
+    method: 'post',
+    data: {
+      individualDishId,
+    },
+  })
+}
+
+export function deleteMyIndividualDish(individualDishId: number) {
+  return request<boolean>({
+    url: '/individualDish/delete',
+    method: 'post',
+    data: {
+      individualDishId,
     },
   })
 }

@@ -132,11 +132,117 @@ cooking-front_mobile
   - [x] 修改密码接口对接 (已完成)
   - [x] 用户菜谱收藏接口对接 (已完成)
   - [x] 营养管理页面接口对接 (已完成)
-  - [ ] 删除我的分享接口对接 (当前进行)
+  - [x] 删除我的分享接口对接 (已完成)
+  - [x] 我的个性化菜谱列表页面设计与实现 (已完成)
+  - [ ] 我的个性化菜谱列表页面接口对接 (当前进行)
 
 ```
 
 ## 6. 当前执行任务
+> **开发者指令：**
+> 现在，让我们开始`我的个性化菜谱列表页面接口对接`吧
+> 0. 现在让我们考虑下，个性化菜谱的详情页吧。我计划复用个性化菜谱生成页 [dish-individual.vue](src/views/dish/dish-individual.vue) ，你可以看到 我在 [dish.ts](src/api/dish.ts) 中为IndividualDishItem添加了 content 他是一个 json line 字符串，其内容与生成时的json line 一致，可以通过我获取个性化菜谱详情接口得到，所以完全完全可以复用生成页面，我希望点击列表中的个性化菜谱时携带 individualDishId和dishId 跳转至 生成页，然后在现有页面的基础上增加 通过individualDishId调用详情接口获取个性化菜谱json line机制。
+> 1. 我的个性化菜谱列表页面 `[my-individual-dish.vue](src/views/user/my-individual-dish.vue)` 及dish.ts等相关文件中完成功能实现与接口对接工作
+> 2. 个性化菜谱分页列表接口 post /individualDish/page 请求参数 {pageNo, pageSize, userId} 其中 userId 为当前登录用户id 通过 getCurrentUserInfo 获取
+> 3. 个性化菜谱详情接口 post /individualDish/detail 请求参数 {individualDishId} 其中 individualDishId 个性化菜谱id
+> 4. 个性化菜谱删除接口 post /individualDish/delete 请求参数 {individualDishId} 其中 individualDishId 个性化菜谱id
+
+
+
+```json5
+// 个性化菜谱分页列表接口响应示例
+{
+    "code": 0,
+    "data": {
+        //当前页
+        "current": 1,
+        //总页数
+        "pages": 1,
+        "records": [
+          {
+            "id":6,
+            "dishId":13,
+            "dishName":"紫菜蛋花汤",
+            "imgPath":"/UploadFile/Dish/c6e64cb3ff534b90a7e5835a77527d0f.jpg",
+            "createTime":"2026-04-13 23:45:56"
+          }
+        ],
+        //每页条数
+        "size": 7,
+        //总条数
+        "total": 1
+    },
+    "message": "success",
+    "success": true
+}
+
+```
+
+```json5
+
+//个性化菜谱详情接口响应示例
+{
+    "code": 0,
+    "data": {
+      "id":6,
+      "dishId":13,
+      "dishName":"紫菜蛋花汤",
+      //JOSN Line 
+      "content":"",
+      "imgPath":"/UploadFile/Dish/c6e64cb3ff534b90a7e5835a77527d0f.jpg",
+      "createTime":"2026-04-13 23:45:56"
+    },
+    "message": "success",
+    "success": true
+}
+
+
+
+```
+
+
+
+## 6. 当前执行任务 (已完成，请忽略本节及其后面的全部内容)
+> **开发者指令：**
+> 现在，让我们开始`我的个性化菜谱列表页面设计与实现`吧
+> 1. 请在我的分享页面 `[my-individual-dish.vue](src/views/user/my-individual-dish.vue)` 及dish.ts等相关文件中完成功能实现与接口对接工作
+> 2. 页面的整体请参考 `my-share.vue` 页面但是将卡片改为横排，每行左边显示菜谱图片，显示菜谱名称等基本信息 这部分可参考 我的收藏页面 `my-collect.vue`
+> 3. 页面仍然和我的分享列表页面一样，包括顶部页面标题、提供搜索框与搜索按钮，列表内容区，列表可以滚动加载，也可以下拉刷新，几乎除了列表项横排样式不同，其他几乎完全相同
+> 4. 其中列表项 支持右滑触发删除功能，在删除前 弹出提示框，提示是否删除，如果确认删除则发送删除请求，并刷新列表数据 
+> 5. 页面中的滚动加载和下拉刷新功能请使用 NutUI 自带的 nut-infinite-loading 和nut-pull-refresh，右滑删除也使用 自带的 nut-swipe
+> 6. 该页面不必创建mock接口，数据直接使用静态数据，数据格式如下：
+
+```json5
+
+{
+    "code": 0,
+    "data": {
+        //当前页
+        "current": 1,
+        //总页数
+        "pages": 1,
+        "records": [
+          {
+            "id":6,
+            "dishId":13,
+            "dishName":"紫菜蛋花汤",
+            "imgPath":"/UploadFile/Dish/c6e64cb3ff534b90a7e5835a77527d0f.jpg",
+            "createTime":"2026-04-13 23:45:56"
+          }
+        ],
+        //每页条数
+        "size": 7,
+        //总条数
+        "total": 1
+    },
+    "message": "success",
+    "success": true
+}
+
+```
+
+
+## 6. 当前执行任务  (已完成，请忽略本节及其后面的全部内容)
 > **开发者指令：**
 > 现在，让我们开始`删除我的分享接口对接`吧 (已完成)
 > 1. 请在我的分享页面 `[my-share.vue](src/views/user/my-share.vue)` 及share.ts等相关文件中完成功能实现与接口对接工作

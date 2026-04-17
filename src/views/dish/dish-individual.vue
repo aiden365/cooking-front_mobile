@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Category, Horizontal, Left, Loading1, More } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AiRecipeLauncher from '../../components/AiRecipeLauncher.vue'
 import {
+  getIndividualDishDetail,
+  parseIndividualDishContent,
   streamIndividualDish,
   type IndividualDishBaseInfo,
   type IndividualDishFlavor,
@@ -19,6 +21,7 @@ defineOptions({
 
 const route = useRoute()
 const router = useRouter()
+const individualDishId = computed(() => Number(route.query.individualDishId || 0))
 
 const selectedLabels = computed(() => {
   const raw = route.query.labelNames
@@ -163,7 +166,6 @@ async function loadIndividualDish() {
   }
 
   streamController?.abort()
-  streamController = new AbortController()
   baseInfo.value = null
   materials.value = []
   flavors.value = []
@@ -174,6 +176,33 @@ async function loadIndividualDish() {
   streaming.value = true
   streamStarted.value = false
   streamFinished.value = false
+
+  if (individualDishId.value > 0) {
+    streaming.value = false
+
+    try {
+      const response = await getIndividualDishDetail(individualDishId.value)
+      const events = parseIndividualDishContent(response.data.content)
+
+      for (const event of events) {
+        applyStreamEvent(event)
+      }
+
+      if (!streamFinished.value) {
+        streamFinished.value = true
+      }
+
+      loading.value = false
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : '个性化菜谱详情加载失败'
+      loading.value = false
+      showToast.fail(errorMessage.value)
+    }
+
+    return
+  }
+
+  streamController = new AbortController()
 
   try {
     await streamIndividualDish(
@@ -221,22 +250,30 @@ onMounted(() => {
   void loadIndividualDish()
 })
 
+watch(
+  () => [route.query.individualDishId, route.query.dishId, route.query.labelIds].join('|'),
+  () => {
+    void loadIndividualDish()
+  },
+)
+
 onBeforeUnmount(() => {
   streamController?.abort()
 })
 
 async function handleRegenerate(payload: { labelIds: number[]; labelNames: string[] }) {
+  const nextQuery: Record<string, string> = {
+    dishId: dishId.value ? String(dishId.value) : '',
+    labelIds: payload.labelIds.join(','),
+    labelNames: payload.labelNames.join('|'),
+  }
+
+  delete nextQuery.individualDishId
+
   await router.replace({
     name: 'DishIndividual',
-    query: {
-      ...route.query,
-      dishId: dishId.value ? String(dishId.value) : '',
-      labelIds: payload.labelIds.join(','),
-      labelNames: payload.labelNames.join('|'),
-    },
+    query: nextQuery,
   })
-
-  void loadIndividualDish()
 }
 </script>
 
