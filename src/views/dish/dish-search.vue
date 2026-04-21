@@ -41,13 +41,25 @@ const showEmptyGenerate = computed(
 )
 
 function applyKeywordFromRoute() {
-  keyword.value = String(route.query.keyword || '西红柿鸡蛋面').trim()
+  keyword.value = String(route.query.keyword).trim()
 }
 
 async function loadSearchList(isLoadMore = false) {
   const trimmedKeyword = appliedKeyword.value.trim()
 
   if ((!hasMore.value && isLoadMore) || loading.value || loadingMore.value) {
+    return
+  }
+
+  if (!trimmedKeyword) {
+    if (!isLoadMore) {
+      dishes.value = []
+      searched.value = false
+      errorMessage.value = ''
+      hasMore.value = false
+      pageNo.value = 1
+      showToast.text('请输入搜索内容')
+    }
     return
   }
 
