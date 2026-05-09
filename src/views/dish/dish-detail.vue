@@ -10,7 +10,7 @@ import {
   TriangleDown,
 } from '@nutui/icons-vue'
 import { showToast } from '@nutui/nutui'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AiRecipeLauncher from '../../components/AiRecipeLauncher.vue'
 import {
@@ -80,6 +80,7 @@ type DetailViewModel = {
   shareCount: number
   cover: string
   checkStatus:number
+  videoPath: string
 }
 
 type DietMealOption = {
@@ -115,6 +116,7 @@ const showAllSteps = ref(false)
 const showCommentPopup = ref(false)
 const showScorePopup = ref(false)
 const showDietPopup = ref(false)
+const showVideoPlayer = ref(false)
 const commentDraft = ref('')
 const replyParentId = ref(0)
 const replyTargetName = ref('')
@@ -147,6 +149,7 @@ const dietPlanCache = ref<Record<string, UserDietMeal[]>>({})
 
 let dietPlanRequestId = 0
 let streamController: AbortController | null = null
+const videoElement = ref<HTMLVideoElement | null>(null)
 
 const currentUserId = getCurrentUserId()
 
@@ -255,6 +258,15 @@ const detailStatusText = computed(() => {
 
   return ''
 })
+const videoUrl = computed(() => {
+  const rawPath = detail.value?.videoPath?.trim()
+  return rawPath ? resolveAssetUrl(rawPath) : ''
+})
+const heroCoverUrl = computed(() => {
+  const rawPath = detail.value?.cover?.trim()
+  return rawPath ? resolveAssetUrl(rawPath) : ''
+})
+const canPlayVideo = computed(() => Boolean(detail.value?.cover && videoUrl.value))
 
 function getDishId() {
   return Number(route.params.id || route.query.dishId || savedDishId.value || 0)
@@ -374,6 +386,7 @@ function applyGeneratedBase(baseInfo: IndividualDishBaseInfo) {
     isFavorite: detail.value?.isFavorite || false,
     shareCount: detail.value?.shareCount || 0,
     cover: detail.value?.cover || '',
+    videoPath: detail.value?.videoPath || '',
     checkStatus: detail.value?.checkStatus || 1,
   }
 }
@@ -536,6 +549,7 @@ async function loadDishData() {
       isFavorite: detailResponse.data.userCollected,
       shareCount: detailResponse.data.shareCount,
       cover: detailResponse.data.imgPath,
+      videoPath: detailResponse.data.videoPath || '',
       checkStatus: detailResponse.data.checkStatus,
     }
 
@@ -571,6 +585,7 @@ async function loadGeneratedDish() {
     isFavorite: false,
     shareCount: 0,
     cover: '',
+    videoPath: '',
     checkStatus: 1,
   }
   materials.value = []
@@ -612,6 +627,35 @@ function goBack() {
   }
 
   router.push('/dish/list')
+}
+
+function openVideoPlayer() {
+  if (!canPlayVideo.value) {
+    return
+  }
+
+  showVideoPlayer.value = true
+
+  void nextTick(async () => {
+    const video = videoElement.value
+
+    if (!video) {
+      return
+    }
+
+    video.load()
+
+    try {
+      await video.play()
+    } catch {
+      // Safari may require the built-in controls interaction to start playback.
+    }
+  })
+}
+
+function closeVideoPlayer() {
+  showVideoPlayer.value = false
+  videoElement.value?.pause()
 }
 
 function getAvatarText(name: string) {
@@ -1030,6 +1074,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  closeVideoPlayer()
   streamController?.abort()
 })
 </script>
@@ -1041,6 +1086,15 @@ onBeforeUnmount(() => {
     <template v-else-if="detail">
       <header class="detail-hero" :class="{ 'detail-hero-compact': !detail.cover }">
         <img v-if="detail.cover" :src="resolveAssetUrl(detail.cover)" :alt="detail.title" class="hero-image" />
+        <button
+          v-if="canPlayVideo"
+          class="hero-video-button"
+          type="button"
+          aria-label="播放视频"
+          @click="openVideoPlayer"
+        >
+          <span class="hero-video-icon" />
+        </button>
         <button class="back-button" type="button" @click="goBack">
           <Left color="#ffffff" size="18" />
         </button>
@@ -1404,6 +1458,24 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <div v-if="showVideoPlayer" class="video-player-mask" @click="closeVideoPlayer" />
+    <section v-if="showVideoPlayer" class="video-player-popup">
+      <button class="video-player-close" type="button" @click="closeVideoPlayer">关闭</button>
+      <video
+        ref="videoElement"
+        class="video-player"
+        controls
+        autoplay
+        preload="metadata"
+        :poster="heroCoverUrl"
+        playsinline
+        webkit-playsinline="true"
+        x-webkit-airplay="allow"
+      >
+        <source :src="videoUrl" type="video/mp4" />
+      </video>
+    </section>
+
   </section>
 </template>
 
@@ -1445,6 +1517,33 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.hero-video-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  background: rgba(17, 24, 39, 0.46);
+  border: none;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  transform: translate(-50%, -50%);
+}
+
+.hero-video-icon {
+  width: 0;
+  height: 0;
+  margin-left: 5px;
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
+  border-left: 18px solid #ffffff;
 }
 
 .back-button {
@@ -1832,7 +1931,8 @@ onBeforeUnmount(() => {
 
 .comment-popup-mask,
 .score-popup-mask,
-.diet-popup-mask {
+.diet-popup-mask,
+.video-player-mask {
   position: fixed;
   inset: 0;
   z-index: 39;
@@ -1851,6 +1951,38 @@ onBeforeUnmount(() => {
   background: #ffffff;
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12);
+}
+
+.video-player-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 40;
+  width: min(92vw, 520px);
+  padding: 12px;
+  background: #111827;
+  border-radius: 18px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.3);
+}
+
+.video-player-close {
+  display: block;
+  margin-left: auto;
+  margin-bottom: 10px;
+  padding: 0;
+  color: #ffffff;
+  font-size: 14px;
+  background: transparent;
+  border: none;
+}
+
+.video-player {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  background: #000000;
+  border-radius: 12px;
 }
 
 .comment-popup-handle,

@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND_BASE_URL = 'http://127.0.0.1:8082'
+const DEFAULT_BACKEND_BASE_URL = 'http://ddns.aidenor.com:8082'
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, '')

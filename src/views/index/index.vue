@@ -111,7 +111,10 @@ async function loadRecipes(isLoadMore = false) {
   }
 
   try {
-    const response = await getDishPage(pageNo.value, pageSize)
+    const response = await getDishPage({
+      pageNo: pageNo.value,
+      pageSize,
+    })
     const nextList = response.data.records
     recipes.value = isLoadMore ? [...recipes.value, ...nextList] : nextList
     hasMore.value = response.data.current < response.data.pages

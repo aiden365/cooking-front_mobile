@@ -3,7 +3,13 @@ import { CircleClose, Left, Search2, StarN, TriangleDown } from '@nutui/icons-vu
 import { showToast } from '@nutui/nutui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDishPage, verifyDishName, type DishItem, type DishSearchParams } from '../../api/dish'
+import {
+  getDishPage,
+  searchDishIds,
+  verifyDishName,
+  type DishItem,
+  type DishSearchParams,
+} from '../../api/dish'
 import { resolveAssetUrl } from '../../utils/assets'
 
 defineOptions({
@@ -16,8 +22,10 @@ const router = useRouter()
 const keyword = ref('')
 const appliedKeyword = ref('')
 const sortBy = ref<DishSearchParams['sortBy']>('comprehensive')
+const sortMethod = ref<'desc' | 'asc'>('desc')
 const withVideo = ref(false)
 const dishes = ref<DishItem[]>([])
+const allDishes = ref<DishItem[]>([])
 const loading = ref(false)
 const loadingMore = ref(false)
 const hasMore = ref(false)
@@ -25,7 +33,9 @@ const errorMessage = ref('')
 const searched = ref(false)
 const generating = ref(false)
 const pageNo = ref(1)
+const matchedDishIds = ref<number[]>([])
 
+const requestPageSize = 9999
 const pageSize = 10
 
 const sortOptions = [
@@ -44,50 +54,93 @@ function applyKeywordFromRoute() {
   keyword.value = String(route.query.keyword).trim()
 }
 
-async function loadSearchList(isLoadMore = false) {
-  const trimmedKeyword = appliedKeyword.value.trim()
+function resetSearchState() {
+  dishes.value = []
+  pageNo.value = 1
+  hasMore.value = false
+}
 
-  if ((!hasMore.value && isLoadMore) || loading.value || loadingMore.value) {
-    return
+function parseTimeValue(time?: string) {
+  if (!time) {
+    return 0
   }
 
-  if (!trimmedKeyword) {
-    if (!isLoadMore) {
-      dishes.value = []
-      searched.value = false
-      errorMessage.value = ''
-      hasMore.value = false
-      pageNo.value = 1
-      showToast.text('请输入搜索内容')
-    }
-    return
+  const matched = time.trim().match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/,
+  )
+
+  if (!matched) {
+    return 0
   }
 
-  if (isLoadMore) {
-    loadingMore.value = true
+  const [, year, month, day, hour = '00', minute = '00', second = '00'] = matched
+  const timestamp = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  ).getTime()
+
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+function compareBySortRule(left: DishItem, right: DishItem) {
+  let leftValue = 0
+  let rightValue = 0
+
+  if (sortBy.value === 'favorite') {
+    leftValue = left.collectCount || 0
+    rightValue = right.collectCount || 0
+  } else if (sortBy.value === 'activity') {
+    leftValue = left.activeVal || 0
+    rightValue = right.activeVal || 0
+  } else if (sortBy.value === 'time') {
+    leftValue = parseTimeValue(left.createTime)
+    rightValue = parseTimeValue(right.createTime)
   } else {
-    loading.value = true
-    errorMessage.value = ''
-    dishes.value = []
-    pageNo.value = 1
-    hasMore.value = false
+    leftValue = left.id || 0
+    rightValue = right.id || 0
   }
+
+  const result = leftValue - rightValue
+  return sortMethod.value === 'asc' ? result : -result
+}
+
+function applyLocalFiltersAndSort(isLoadMore = false) {
+  const filteredList = withVideo.value
+    ? allDishes.value.filter((item) => Boolean(item.videoPath))
+    : [...allDishes.value]
+
+  const sortedList = filteredList.sort(compareBySortRule)
+  const endIndex = pageNo.value * pageSize
+  dishes.value = sortedList.slice(0, endIndex)
+  hasMore.value = endIndex < sortedList.length
+  searched.value = true
+}
+
+async function loadDishList() {
+  if (loading.value || loadingMore.value) {
+    return
+  }
+
+  loading.value = true
+  errorMessage.value = ''
+  resetSearchState()
 
   try {
-    const response = await getDishPage(
-      pageNo.value,
-      pageSize,
-      trimmedKeyword,
-      undefined,
-      sortBy.value,
-      withVideo.value,
-    )
+    const response = await getDishPage({
+      pageNo: 1,
+      pageSize: requestPageSize,
+      dishIds: matchedDishIds.value,
+    })
 
-    const nextList = response.data.records ?? []
-    dishes.value = isLoadMore ? [...dishes.value, ...nextList] : nextList
-    hasMore.value = response.data.current < response.data.pages
+    allDishes.value = response.data.records ?? []
+    applyLocalFiltersAndSort()
     searched.value = true
   } catch (error) {
+    allDishes.value = []
     errorMessage.value = error instanceof Error ? error.message : '搜索失败'
     searched.value = true
   } finally {
@@ -96,14 +149,91 @@ async function loadSearchList(isLoadMore = false) {
   }
 }
 
+async function loadSearchList() {
+  const trimmedKeyword = appliedKeyword.value.trim()
+
+  if (loading.value || loadingMore.value) {
+    return
+  }
+
+  if (!trimmedKeyword) {
+    matchedDishIds.value = []
+    allDishes.value = []
+    searched.value = false
+    errorMessage.value = ''
+    resetSearchState()
+    showToast.text('请输入搜索内容')
+    return
+  }
+
+  loading.value = true
+  errorMessage.value = ''
+  resetSearchState()
+
+  try {
+    const searchResponse = await searchDishIds({
+      dishName: trimmedKeyword,
+    })
+
+    matchedDishIds.value = searchResponse.data ?? []
+    allDishes.value = []
+    searched.value = true
+
+    if (!matchedDishIds.value.length) {
+      return
+    }
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '搜索失败'
+    searched.value = true
+    return
+  } finally {
+    loading.value = false
+  }
+
+  await loadDishList()
+}
+
 function handleSearch() {
   appliedKeyword.value = keyword.value.trim()
   void loadSearchList()
 }
 
+function handleSortChange(nextSortBy: typeof sortOptions[number]['key']) {
+  if (nextSortBy === 'comprehensive') {
+    sortBy.value = nextSortBy
+    sortMethod.value = 'desc'
+  } else if (sortBy.value === nextSortBy) {
+    sortMethod.value = sortMethod.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sortBy.value = nextSortBy
+    sortMethod.value = 'desc'
+  }
+
+  if (!searched.value || !matchedDishIds.value.length) {
+    return
+  }
+
+  pageNo.value = 1
+  applyLocalFiltersAndSort()
+}
+
+function getSortArrowClass(optionKey: typeof sortOptions[number]['key']) {
+  if (sortBy.value !== optionKey) {
+    return 'sort-arrow'
+  }
+
+  return sortMethod.value === 'asc' ? 'sort-arrow sort-arrow-active sort-arrow-asc' : 'sort-arrow sort-arrow-active'
+}
+
 function handleLoadMore() {
+  if (!hasMore.value || loading.value || loadingMore.value) {
+    return
+  }
+
+  loadingMore.value = true
   pageNo.value += 1
-  void loadSearchList(true)
+  applyLocalFiltersAndSort(true)
+  loadingMore.value = false
 }
 
 function goBack() {
@@ -118,10 +248,14 @@ function goBack() {
 function clearKeyword() {
   keyword.value = ''
   appliedKeyword.value = ''
-  dishes.value = []
+  sortBy.value = 'comprehensive'
+  sortMethod.value = 'desc'
+  withVideo.value = false
+  matchedDishIds.value = []
+  allDishes.value = []
   searched.value = false
   errorMessage.value = ''
-  hasMore.value = false
+  resetSearchState()
 }
 
 function goDetail(id?: number) {
@@ -157,6 +291,9 @@ async function handleGenerateDish() {
 
     router.push({
       name: 'DishDetail',
+      params: {
+        id: '0',
+      },
       query: {
         dishName,
       },
@@ -168,12 +305,13 @@ async function handleGenerateDish() {
   }
 }
 
-watch([sortBy, withVideo], () => {
+watch(withVideo, () => {
   if (!searched.value) {
     return
   }
 
-  void loadSearchList()
+  pageNo.value = 1
+  applyLocalFiltersAndSort()
 })
 
 watch(
@@ -233,10 +371,15 @@ onMounted(() => {
             type="button"
             class="sort-button"
             :class="{ 'sort-button-active': sortBy === option.key }"
-            @click="sortBy = option.key"
+            @click="handleSortChange(option.key)"
           >
             <span>{{ option.label }}</span>
-            <TriangleDown v-if="option.key !== 'comprehensive'" size="10" color="#333333" />
+            <TriangleDown
+              v-if="option.key !== 'comprehensive'"
+              size="10"
+              :color="sortBy === option.key ? 'rgb(255, 126, 113)' : '#333333'"
+              :class="getSortArrowClass(option.key)"
+            />
           </button>
         </div>
 
@@ -251,7 +394,7 @@ onMounted(() => {
       <div v-if="loading" class="state-box">搜索中...</div>
       <div v-else-if="errorMessage" class="state-box">{{ errorMessage }}</div>
       <div v-else-if="showEmptyGenerate" class="empty-box">
-        <Search2 class="empty-icon" color="rgb(255, 126, 113)" />
+<!--        <Search2 class="empty-icon" color="rgb(255, 126, 113)" />-->
         <p>未检索到相关的菜谱</p>
         <button class="generate-button" type="button" :disabled="generating" @click="handleGenerateDish">
           {{ generating ? '生成中...' : '立即生成' }}
@@ -402,6 +545,18 @@ onMounted(() => {
 
 .sort-button-active {
   color: #111111;
+}
+
+.sort-arrow {
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.sort-arrow-active {
+  color: rgb(255, 126, 113);
+}
+
+.sort-arrow-asc {
+  transform: rotate(180deg);
 }
 
 .sort-button-active::after {

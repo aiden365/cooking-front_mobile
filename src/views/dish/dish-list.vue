@@ -98,7 +98,12 @@ async function loadDishList(isLoadMore = false) {
 
   try {
 
-    const response = await getDishPage(pageNo.value, pageSize, keyword.value, activeCategoryId.value)
+    const response = await getDishPage({
+      pageNo: pageNo.value,
+      pageSize,
+      search: keyword.value.trim() || undefined,
+      labelId: activeCategory.value?.isAll ? undefined : activeCategoryId.value,
+    })
     const nextList = response.data.records
     dishes.value = isLoadMore ? [...dishes.value, ...nextList] : nextList
     hasMore.value = response.data.current < response.data.pages

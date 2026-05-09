@@ -7,6 +7,8 @@ export interface DishItem {
   labelNames?: string[]
   videoPath?: string
   collectCount: number
+  activeVal?: number
+  createTime?: string
   shareCount:number
 }
 
@@ -59,6 +61,7 @@ export interface DishDetailData {
   userCollected: boolean
   shareCount: number
   checkStatus: 1 | 2
+  videoPath?: string
 }
 
 export interface DishMaterialItem {
@@ -131,6 +134,10 @@ export interface DishSearchParams {
   pageSize?: number
 }
 
+export interface DishSearchPayload {
+  dishName: string
+}
+
 export function getRecommendDishes() {
   return request<DishItem[]>({
     url: '/dishes/recommend',
@@ -140,9 +147,9 @@ export function getRecommendDishes() {
 
 
 
-export function getDishSearchList(data: DishSearchParams) {
-  return request<{ list: DishItem[]; total: number; page: number; pageSize: number }>({
-    url: '/dishe/search',
+export function searchDishIds(data: DishSearchPayload) {
+  return request<number[]>({
+    url: '/dish/search',
     method: 'post',
     data,
   })
@@ -290,9 +297,9 @@ export interface DishPage {
 export interface DishPageQuery {
   pageNo: number
   pageSize: number
+  dishIds?: number[]
   search?: string
   labelId?: number
-  sortBy?: DishSearchParams['sortBy']
   withVideo?: boolean
 }
 
@@ -616,24 +623,17 @@ export function verifyDishName(dishName: string) {
   })
 }
 
-export function getDishPage(
-  pageNo: number,
-  pageSize: number,
-  search?: string,
-  labelId?: number,
-  sortBy?: DishSearchParams['sortBy'],
-  withVideo?: boolean,
-) {
+export function getDishPage(payload: DishPageQuery) {
   return request<DishPage>({
     url: '/dish/page',
     method: 'post',
     data: {
-      pageNo,
-      pageSize,
-      search,
-      labelId,
-      sortBy,
-      withVideo,
+      pageNo: payload.pageNo,
+      pageSize: payload.pageSize,
+      dishIds: payload.dishIds,
+      search: payload.search,
+      labelId: payload.labelId,
+      withVideo: payload.withVideo,
     },
   })
 }
