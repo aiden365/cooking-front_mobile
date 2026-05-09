@@ -238,6 +238,8 @@ const aiNoticeText = computed(() => {
   return 'AI生成声明：该菜谱内容由 AI 生成，暂未经过人工校准，请谨慎参考并结合实际情况调整。'
 })
 const isStreamMode = computed(() => !getDishId() && Boolean(generatedDishName.value))
+const shouldShowPageLoading = computed(() => loading.value && !isStreamMode.value)
+const shouldShowPageError = computed(() => Boolean(errorMessage.value) && !detail.value)
 const canUseDishActions = computed(() => !isStreamMode.value || savedDishId.value > 0)
 const detailStatusText = computed(() => {
   if (errorMessage.value) {
@@ -1081,8 +1083,8 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="detail-page">
-    <div v-if="loading" class="page-state">菜谱详情加载中...</div>
-    <div v-else-if="errorMessage" class="page-state">{{ errorMessage }}</div>
+    <div v-if="shouldShowPageLoading" class="page-state">菜谱详情加载中...</div>
+    <div v-else-if="shouldShowPageError" class="page-state">{{ errorMessage }}</div>
     <template v-else-if="detail">
       <header class="detail-hero" :class="{ 'detail-hero-compact': !detail.cover }">
         <img v-if="detail.cover" :src="resolveAssetUrl(detail.cover)" :alt="detail.title" class="hero-image" />
