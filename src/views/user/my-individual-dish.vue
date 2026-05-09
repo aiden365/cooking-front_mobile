@@ -41,7 +41,7 @@ function goBack() {
 
 function goDetail(item: IndividualDishItem) {
   router.push({
-    name: 'DishIndividual',
+    name: 'MyIndividualDetail',
     query: {
       individualDishId: String(item.id),
       dishId: String(item.dishId),

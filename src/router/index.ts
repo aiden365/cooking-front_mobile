@@ -107,6 +107,11 @@ const routes = [
     component: () => import('../views/user/my-individual-dish.vue'),
   },
   {
+    path: '/user/my-individual-detail',
+    name: 'MyIndividualDetail',
+    component: () => import('../views/user/my-individual-detail.vue'),
+  },
+  {
     path: '/user/my-label',
     name: 'MyLabel',
     component: () => import('../views/user/my-label.vue'),
