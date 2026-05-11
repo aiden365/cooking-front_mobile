@@ -109,13 +109,18 @@ onMounted(() => {
 
 <style scoped>
 .collect-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background: #ffffff;
 }
 
 .page-header {
   display: grid;
   grid-template-columns: 44px 1fr 44px;
+  flex-shrink: 0;
   align-items: center;
   padding: 46px 8px 18px;
   background: #f7f7f7;
@@ -146,7 +151,11 @@ onMounted(() => {
 }
 
 .collect-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 18px 16px 28px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .date-group + .date-group {
